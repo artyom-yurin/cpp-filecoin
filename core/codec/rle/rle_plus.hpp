@@ -38,13 +38,13 @@ namespace fc::codec::rle {
     RLEPlusDecodingStream decoder(input);
     try {
       decoder >> data;
-    } catch (errors::VersionMismatch) {
+    } catch (errors::VersionMismatch&) {
       return RLEPlusDecodeError::VersionMismatch;
-    } catch (errors::IndexOutOfBound) {
+    } catch (errors::IndexOutOfBound&) {
       return RLEPlusDecodeError::DataIndexFailure;
-    } catch (errors::UnpackBytesOverflow) {
+    } catch (errors::UnpackBytesOverflow&) {
       return RLEPlusDecodeError::UnpackOverflow;
-    } catch (errors::MaxSizeExceed) {
+    } catch (errors::MaxSizeExceed&) {
       return RLEPlusDecodeError::MaxSizeExceed;
     }
     return data;

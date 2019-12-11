@@ -36,9 +36,9 @@ namespace fc::codec::rle {
       for (const auto &value : periods) {
         if (value == 1) {
           content_.push_back(true);
-        } else if (value < Config::LONG_BLOCK_VALUE) {
+        } else if (value < LONG_BLOCK_VALUE) {
           this->pushSmallBlock(value);
-        } else if (value >= Config::LONG_BLOCK_VALUE) {
+        } else if (value >= LONG_BLOCK_VALUE) {
           this->pushLongBlock(value);
         }
       }
@@ -77,7 +77,7 @@ namespace fc::codec::rle {
     void pushSmallBlock(const T block) {
       content_.push_back(false);
       content_.push_back(true);
-      for (size_t i = 0; i < Config::SMALL_BLOCK_LENGTH; ++i) {
+      for (size_t i = 0; i < SMALL_BLOCK_LENGTH; ++i) {
         content_.push_back((block & (1 << i)) >> i);
       }
     }
@@ -93,10 +93,10 @@ namespace fc::codec::rle {
       T slice = block;
       content_.push_back(false);
       content_.push_back(false);
-      while (slice >= Config::BYTE_SLICE_VALUE) {
-        byte = slice | Config::BYTE_SLICE_VALUE;
+      while (slice >= BYTE_SLICE_VALUE) {
+        byte = slice | BYTE_SLICE_VALUE;
         this->pushByte(byte);
-        slice >>= Config::PACK_BYTE_SHIFT;
+        slice >>= PACK_BYTE_SHIFT;
       }
       this->pushByte(static_cast<uint8_t>(slice));
     }
@@ -106,7 +106,7 @@ namespace fc::codec::rle {
      * @param byte - content to write
      */
     void pushByte(uint8_t byte) {
-      for (size_t i = 0; i < Config::BYTE_BITS_COUNT; ++i) {
+      for (size_t i = 0; i < BYTE_BITS_COUNT; ++i) {
         bool bit = static_cast<bool>((byte & (1 << i)) >> i);
         content_.push_back(bit);
       }

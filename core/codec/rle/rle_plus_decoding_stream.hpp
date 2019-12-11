@@ -36,7 +36,7 @@ namespace fc::codec::rle {
      */
     template <typename T>
     RLEPlusDecodingStream &operator>>(std::set<T> &output) {
-      if ((content_.size() < Config::SMALL_BLOCK_LENGTH)
+      if ((content_.size() < SMALL_BLOCK_LENGTH)
           || (getSpan<uint8_t>(2) != 0)) {
         throw errors::VersionMismatch();
       }
@@ -56,7 +56,7 @@ namespace fc::codec::rle {
           }
         }
       }
-      constexpr size_t max_size = Config::OBJECT_MAX_SIZE / sizeof(T);
+      constexpr size_t max_size = OBJECT_MAX_SIZE / sizeof(T);
       if (output.size() > max_size) {
         throw errors::MaxSizeExceed();
       }
@@ -101,17 +101,17 @@ namespace fc::codec::rle {
     T unpack(const std::vector<uint8_t> &data) {
       T value{};
       size_t shift{};
-      const size_t max_shift = sizeof(T) * Config::BYTE_BITS_COUNT;
+      const size_t max_shift = sizeof(T) * BYTE_BITS_COUNT;
       for (const auto &byte : data) {
         if (shift > max_shift) {
           throw errors::UnpackBytesOverflow{};
         }
-        if (byte < Config::BYTE_SLICE_VALUE) {
+        if (byte < BYTE_SLICE_VALUE) {
           value = value | (static_cast<T>(byte) << shift);
           break;
         }
-        value |= static_cast<T>(byte & Config::UNPACK_BYTE_MASK) << shift;
-        shift += Config::PACK_BYTE_SHIFT;
+        value |= static_cast<T>(byte & UNPACK_BYTE_MASK) << shift;
+        shift += PACK_BYTE_SHIFT;
       }
       return value;
     }
@@ -139,7 +139,7 @@ namespace fc::codec::rle {
      */
     template <typename T>
     void decodeSmallBlock(T &current_value, std::set<T> &output) {
-      size_t length = getSpan<uint8_t>(Config::SMALL_BLOCK_LENGTH);
+      size_t length = getSpan<uint8_t>(SMALL_BLOCK_LENGTH);
       if (magnitude_) {
         for (size_t i = 0; i < length; ++i) {
           output.insert(current_value++);
@@ -161,9 +161,9 @@ namespace fc::codec::rle {
       std::vector<uint8_t> bytes{};
       uint8_t slice;
       do {
-        slice = getSpan<uint8_t>(Config::BYTE_BITS_COUNT);
+        slice = getSpan<uint8_t>(BYTE_BITS_COUNT);
         bytes.push_back(slice);
-      } while ((slice & Config::BYTE_SLICE_VALUE) != 0);
+      } while ((slice & BYTE_SLICE_VALUE) != 0);
       T length = unpack<T>(bytes);
       if (magnitude_) {
         for (size_t i = 0; i < length; ++i) {

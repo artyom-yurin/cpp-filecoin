@@ -7,6 +7,10 @@
 
 #include "core/codec/rleplus/rle_plus_codec_tester.hpp"
 
+using fc::codec::rle::RLEPlusDecode;
+using fc::codec::rle::RLEPlusDecodeError;
+using fc::codec::rle::RLEPlusEncode;
+
 using types = testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 
 TYPED_TEST_CASE(RLEPlusCodecTester, types);
@@ -89,7 +93,7 @@ TYPED_TEST(RLEPlusCodecTester, MixedBlocksSuccess) {
  * @then Decode operation must be failed with appropriate error code
  */
 TYPED_TEST(RLEPlusCodecTester, InvalidHeaderDecodeFailure) {
-  auto expected = fc::codec::rle::RLEPlusDecodeError::VersionMismatch;
+  auto expected = RLEPlusDecodeError::VersionMismatch;
   std::vector<uint8_t> data{0xFF, 0x8, 0x15, 0x16};
   this->checkDecodeFailure(data, expected);
 }
@@ -100,7 +104,7 @@ TYPED_TEST(RLEPlusCodecTester, InvalidHeaderDecodeFailure) {
  * @then Decode operation must be failed with appropriate error code
  */
 TYPED_TEST(RLEPlusCodecTester, InvalidStructureDecodeFailure) {
-  auto expected = fc::codec::rle::RLEPlusDecodeError::DataIndexFailure;
+  auto expected = RLEPlusDecodeError::DataIndexFailure;
   std::vector<uint8_t> data{0x4, 0x8, 0x15, 0x16};
   this->checkDecodeFailure(data, expected);
 }
@@ -112,9 +116,8 @@ TYPED_TEST(RLEPlusCodecTester, InvalidStructureDecodeFailure) {
  * as the given
  */
 TYPED_TEST(RLEPlusCodecTester, ReferenceComparingSuccess) {
-  auto encoded = fc::codec::rle::RLEPlusEncode(this->reference_decoded_sample_);
-  EXPECT_OUTCOME_TRUE(decoded,
-                      fc::codec::rle::RLEPlusDecode<TypeParam>(encoded));
+  auto encoded = RLEPlusEncode(this->reference_decoded_sample_);
+  EXPECT_OUTCOME_TRUE(decoded, RLEPlusDecode<TypeParam>(encoded));
   ASSERT_EQ(decoded, this->reference_decoded_sample_);
 }
 
@@ -126,15 +129,15 @@ TYPED_TEST(RLEPlusCodecTester, ReferenceComparingSuccess) {
 TEST(RLEPlusDecode, MaxSizeExceedFailure) {
   std::set<uint64_t> data_set;
   constexpr size_t max_length =
-      fc::codec::rle::Config::OBJECT_MAX_SIZE / sizeof(uint64_t) + 1;
+      fc::codec::rle::OBJECT_MAX_SIZE / sizeof(uint64_t) + 1;
   uint64_t value = 0;
   for (size_t i = 0; i < max_length; ++i) {
     data_set.emplace(value);
     value += 2;
   }
-  auto encoded = fc::codec::rle::RLEPlusEncode(data_set);
-  auto expected = fc::codec::rle::RLEPlusDecodeError::MaxSizeExceed;
-  auto result = fc::codec::rle::RLEPlusDecode<uint64_t>(encoded);
+  auto encoded = RLEPlusEncode(data_set);
+  auto expected = RLEPlusDecodeError::MaxSizeExceed;
+  auto result = RLEPlusDecode<uint64_t>(encoded);
   ASSERT_TRUE(result.has_error());
   ASSERT_EQ(result.error().value(), static_cast<int>(expected));
 }

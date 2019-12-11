@@ -64,7 +64,7 @@ class RLEPlusCodecTester : public ::testing::Test {
   std::set<T> generateDataSet(T value, T end, T (*next)(T)) {
     std::set<T> data;
     const size_t max_length =
-        fc::codec::rle::Config::OBJECT_MAX_SIZE / sizeof(T);
+        fc::codec::rle::OBJECT_MAX_SIZE / sizeof(T);
     for (size_t i = 0; (i < max_length) && (value != end); ++i) {
       data.emplace(value);
       value = next(value);
