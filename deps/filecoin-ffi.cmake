@@ -11,17 +11,17 @@ set(FILECOIN_FFI_LIB
         "${FILECOIN_FFI_PATH}/libfilecoin.a")
 
 file(MAKE_DIRECTORY ${FILECOIN_FFI_INCLUDES})
-
+set(ENV{FFI_BUILD_FROM_SOURCE} "1")
 
 add_custom_target(
         filecoin_ffi_build
-        COMMAND make clean all
+        COMMAND make
         WORKING_DIRECTORY ${FILECOIN_FFI_PATH}
 )
 
 add_custom_target(
         filecoin_ffi_fix_include
-        COMMAND mkdir -p ${FILECOIN_FFI_INCLUDES} && mv "${FILECOIN_FFI_PATH}/filecoin.h" ${FILECOIN_FFI_INCLUDES}
+        COMMAND mkdir -p ${FILECOIN_FFI_INCLUDES} && cp "${FILECOIN_FFI_PATH}/filecoin.h" ${FILECOIN_FFI_INCLUDES}
         WORKING_DIRECTORY ${FILECOIN_FFI_PATH}
 )
 
