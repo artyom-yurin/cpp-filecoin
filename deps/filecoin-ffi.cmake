@@ -33,6 +33,15 @@ add_library(filecoin_ffi
         STATIC IMPORTED GLOBAL
         )
 
+set(ENV{PKG_CONFIG_PATH}  "${PKG_CONFIG_PATH}:${FILECOIN_FFI_PATH}")
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PKG_FILECOIN REQUIRED filecoin)
+
+target_link_libraries(filecoin_ffi INTERFACE ${PKG_FILECOIN_LIBRARIES})
+target_include_directories(filecoin_ffi PUBLIC ${PKG_FILECOIN_INCLUDE_DIRS})
+target_compile_options(filecoin_ffi PUBLIC ${PKG_FILECOIN_CFLAGS_OTHER})
+
 set_target_properties(filecoin_ffi PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES ${FILECOIN_FFI_PATH}/include
         IMPORTED_LOCATION ${FILECOIN_FFI_LIB}
