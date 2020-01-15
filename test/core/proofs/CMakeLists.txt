@@ -5,5 +5,10 @@
 
 addtest(proofs_test proofs_test.cpp)
 
-    target_link_libraries(
-        proofs_test proofs filecoin_ffi outcome blob base_fs_test)
+target_link_libraries( proofs_test
+        proofs
+        proof_param_provider
+        filecoin_ffi
+        outcome
+        blob
+        base_fs_test)

@@ -11,6 +11,7 @@
 #include "storage/filestore/impl/filesystem/filesystem_file.hpp"
 #include "testutil/outcome.hpp"
 #include "testutil/storage/base_fs_test.hpp"
+#include "proofs/proof_param_provider.hpp"
 
 using fc::storage::filestore::File;
 using fc::storage::filestore::FileSystemFile;
@@ -20,6 +21,10 @@ class ProofsTest : public test::BaseFS_Test {
  public:
   ProofsTest() : test::BaseFS_Test("/tmp/fc_proofs_test/") {}
 };
+
+TEST_F(ProofsTest, GetParam) {
+  ProofParamProvider::getParams();
+}
 
 TEST_F(ProofsTest, ValidPoSt) {
   Path metadata_dir = boost::filesystem::unique_path(
