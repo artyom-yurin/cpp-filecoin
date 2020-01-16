@@ -40,12 +40,35 @@ namespace fc::codec::cbor {
       return *this;
     }
 
+    /// Encodes nullable optional value
+    template <typename T>
+    CborEncodeStream &operator<<(const boost::optional<T> &optional) {
+      if (optional) {
+        *this << *optional;
+      } else {
+        *this << nullptr;
+      }
+      return *this;
+    }
+
+    /// Encodes elements into list
+    template <typename T>
+    CborEncodeStream &operator<<(const std::vector<T> &values) {
+      auto l = list();
+      for (auto &value : values) {
+        l << value;
+      }
+      return *this << l;
+    }
+
     /** Encodes bytes */
     CborEncodeStream &operator<<(const std::vector<uint8_t> &bytes);
+    /** Encodes bytes */
+    CborEncodeStream &operator<<(gsl::span<const uint8_t> bytes);
     /** Encodes string */
     CborEncodeStream &operator<<(const std::string &str);
     /** Encodes CID */
-    CborEncodeStream &operator<<(const libp2p::multi::ContentIdentifier &cid);
+    CborEncodeStream &operator<<(const CID &cid);
     /** Encodes list container encode substream */
     CborEncodeStream &operator<<(const CborEncodeStream &other);
     /** Encodes map container encode substream map */
@@ -59,6 +82,8 @@ namespace fc::codec::cbor {
     static CborEncodeStream list();
     /** Creates map container encode substream map */
     static std::map<std::string, CborEncodeStream> map();
+    /** Wraps CBOR bytes */
+    static CborEncodeStream wrap(gsl::span<const uint8_t> data, size_t count);
 
    private:
     void addCount(size_t count);

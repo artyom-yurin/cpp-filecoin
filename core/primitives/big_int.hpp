@@ -21,13 +21,20 @@ namespace fc::primitives {
     using cpp_int::cpp_int;
   };
 
-  template <
-      class Stream,
-      class T,
-      typename = std::enable_if_t<
-          (std::is_same_v<T, BigInt> || std::is_same_v<T, UBigInt>)&&Stream::
-              is_cbor_encoder_stream>>
-  Stream &operator<<(Stream &s, const T &big_int) {
+  static inline bool operator==(const BigInt &lhs, const BigInt &rhs) {
+    return static_cast<cpp_int>(lhs) == static_cast<cpp_int>(rhs);
+  }
+
+  static inline bool operator==(const BigInt &lhs, int rhs) {
+    return static_cast<cpp_int>(lhs) == rhs;
+  }
+
+  template <class Stream,
+            class T,
+            typename = std::enable_if_t<
+                (std::is_same_v<T, BigInt> || std::is_same_v<T, UBigInt>)&&std::
+                    remove_reference<Stream>::type::is_cbor_encoder_stream>>
+  Stream &operator<<(Stream &&s, const T &big_int) {
     std::vector<uint8_t> bytes;
     if (big_int != 0) {
       if (std::is_same_v<T, BigInt>) {

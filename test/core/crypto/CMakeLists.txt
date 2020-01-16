@@ -24,3 +24,7 @@ addtest(murmur_test
 target_link_libraries(murmur_test
     murmur
     )
+
+add_subdirectory(randomness)
+add_subdirectory(vrf)
+

@@ -8,6 +8,11 @@
 namespace fc::codec::cbor {
   CborEncodeStream &CborEncodeStream::operator<<(
       const std::vector<uint8_t> &bytes) {
+    return *this << gsl::make_span(bytes);
+  }
+
+  CborEncodeStream &CborEncodeStream::operator<<(
+      gsl::span<const uint8_t> bytes) {
     addCount(1);
 
     std::vector<uint8_t> encoded(9 + bytes.size());
@@ -35,8 +40,7 @@ namespace fc::codec::cbor {
     return *this;
   }
 
-  CborEncodeStream &CborEncodeStream::operator<<(
-      const libp2p::multi::ContentIdentifier &cid) {
+  CborEncodeStream &CborEncodeStream::operator<<(const CID &cid) {
     auto maybe_cid_bytes = libp2p::multi::ContentIdentifierCodec::encode(cid);
     if (maybe_cid_bytes.has_error()) {
       outcome::raise(CborEncodeError::INVALID_CID);
@@ -144,6 +148,14 @@ namespace fc::codec::cbor {
 
   std::map<std::string, CborEncodeStream> CborEncodeStream::map() {
     return {};
+  }
+
+  CborEncodeStream CborEncodeStream::wrap(gsl::span<const uint8_t> data,
+                                          size_t count) {
+    CborEncodeStream s;
+    s.data_.assign(data.begin(), data.end());
+    s.count_ = count;
+    return s;
   }
 
   void CborEncodeStream::addCount(size_t count) {

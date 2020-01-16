@@ -3,30 +3,43 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "storage/ipfs/impl/datastore_leveldb.hpp"
-
 #include <gtest/gtest.h>
+
 #include <boost/filesystem.hpp>
 #include <boost/uuid/uuid.hpp>
-#include <libp2p/crypto/random_generator/boost_generator.hpp>
-#include "common/outcome_throw.hpp"
+
+#include "storage/ipfs/impl/datastore_leveldb.hpp"
+#include "testutil/literals.hpp"
 #include "testutil/outcome.hpp"
 
+using fc::CID;
 using fc::common::Buffer;
-using fc::storage::LevelDB;
+using fc::storage::ipfs::IpfsDatastore;
+using fc::storage::ipfs::IpfsDatastoreError;
 using fc::storage::ipfs::LeveldbDatastore;
-using libp2p::crypto::random::BoostRandomGenerator;
-using libp2p::crypto::random::CSPRNG;
-using libp2p::multi::ContentIdentifier;
 using libp2p::multi::HashType;
 using libp2p::multi::MulticodecType;
 using libp2p::multi::Multihash;
 
 struct DatastoreIntegrationTest : public ::testing::Test {
   using Options = leveldb::Options;
-  using CID = ContentIdentifier;
 
-  static constexpr size_t kDefaultBufferLength = 32;
+  Options options{};
+
+  CID cid1{
+      CID::Version::V1,
+      MulticodecType::SHA2_256,
+      Multihash::create(HashType::sha256,
+                        "0123456789ABCDEF0123456789ABCDEF"_unhex)
+          .value()};
+  CID cid2{
+      CID::Version::V1,
+      MulticodecType::SHA2_256,
+      Multihash::create(HashType::sha256,
+                        "FEDCBA9876543210FEDCBA9876543210"_unhex)
+          .value()};
+
+  Buffer value{"0123456789ABCDEF0123456789ABCDEF"_unhex};
 
   static boost::filesystem::path makeTempPath() {
     boost::filesystem::path global_temp_dir =
@@ -35,29 +48,12 @@ struct DatastoreIntegrationTest : public ::testing::Test {
         global_temp_dir.append("%%%%%-%%%%%-%%%%%"));
   }
 
-  LeveldbDatastore::Value makeRandomBuffer(size_t size = kDefaultBufferLength) {
-    return Buffer{generator->randomBytes(size)};
-  }
-
-  CID makeCid() {
-    auto version = CID::Version::V1;
-    auto codec_type = MulticodecType::SHA2_256;
-    auto size = 32u;  // sha256 bytes count
-    auto hash =
-        Multihash::create(HashType::sha256, generator->randomBytes(size));
-    if (!hash) boost::throw_exception(std::system_error(hash.error()));
-
-    return ContentIdentifier(version, codec_type, hash.value());
-  }
-
   void SetUp() override {
     leveldb_path = makeTempPath();
-    Options options{};
     options.create_if_missing = true;
     auto result = LeveldbDatastore::create(leveldb_path.string(), options);
     if (!result) boost::throw_exception(std::system_error(result.error()));
     datastore = result.value();
-    generator = std::make_shared<BoostRandomGenerator>();
   }
 
   void TearDown() override {
@@ -67,7 +63,6 @@ struct DatastoreIntegrationTest : public ::testing::Test {
     }
   }
 
-  std::shared_ptr<CSPRNG> generator;
   boost::filesystem::path leveldb_path;
   std::shared_ptr<LeveldbDatastore> datastore;
 };
@@ -79,11 +74,8 @@ struct DatastoreIntegrationTest : public ::testing::Test {
  * @then all operation succeeded, obtained value is equal to original value
  */
 TEST_F(DatastoreIntegrationTest, ContainsExistingTrueSuccess) {
-  auto value = makeRandomBuffer();
-  auto cid = makeCid();
-  EXPECT_OUTCOME_TRUE_1(datastore->set(cid, value));
-  EXPECT_OUTCOME_TRUE(res,datastore->contains(cid));
-  ASSERT_TRUE(res);
+  EXPECT_OUTCOME_TRUE_1(datastore->set(cid1, value));
+  EXPECT_OUTCOME_EQ(datastore->contains(cid1), true);
 }
 
 /**
@@ -92,12 +84,8 @@ TEST_F(DatastoreIntegrationTest, ContainsExistingTrueSuccess) {
  * @then all operations succeed and datastore doesn't contains cid2
  */
 TEST_F(DatastoreIntegrationTest, ContainsNotExistingFalseSuccess) {
-  auto cid1 = makeCid();
-  auto cid2 = makeCid();
-  auto value = makeRandomBuffer();
   EXPECT_OUTCOME_TRUE_1(datastore->set(cid1, value));
-  EXPECT_OUTCOME_TRUE(res,datastore->contains(cid2));
-  ASSERT_FALSE(res);
+  EXPECT_OUTCOME_EQ(datastore->contains(cid2), false);
 }
 
 /**
@@ -106,11 +94,8 @@ TEST_F(DatastoreIntegrationTest, ContainsNotExistingFalseSuccess) {
  * @then all operations succeed
  */
 TEST_F(DatastoreIntegrationTest, GetExistingSuccess) {
-  auto cid = makeCid();
-  auto value = makeRandomBuffer();
-  EXPECT_OUTCOME_TRUE_1(datastore->set(cid, value));
-  EXPECT_OUTCOME_TRUE(v, datastore->get(cid));
-  ASSERT_EQ(v, value);
+  EXPECT_OUTCOME_TRUE_1(datastore->set(cid1, value));
+  EXPECT_OUTCOME_EQ(datastore->get(cid1), value);
 }
 
 /**
@@ -119,11 +104,8 @@ TEST_F(DatastoreIntegrationTest, GetExistingSuccess) {
  * @then put operation succeeds, get operation fails
  */
 TEST_F(DatastoreIntegrationTest, GetNotExistingFailure) {
-  auto cid1 = makeCid();
-  auto cid2 = makeCid();
-  auto value = makeRandomBuffer();
   EXPECT_OUTCOME_TRUE_1(datastore->set(cid1, value));
-  EXPECT_OUTCOME_FALSE_1(datastore->get(cid2));
+  EXPECT_OUTCOME_ERROR(IpfsDatastoreError::NOT_FOUND, datastore->get(cid2));
 }
 
 /**
@@ -132,12 +114,9 @@ TEST_F(DatastoreIntegrationTest, GetNotExistingFailure) {
  * @then all operations succeed and datastore doesn't contain cid anymore
  */
 TEST_F(DatastoreIntegrationTest, RemoveSuccess) {
-  auto cid = makeCid();
-  auto value = makeRandomBuffer();
-  EXPECT_OUTCOME_TRUE_1(datastore->set(cid, value));
-  EXPECT_OUTCOME_TRUE_1(datastore->remove(cid));
-  EXPECT_OUTCOME_TRUE(res,datastore->contains(cid));
-  ASSERT_FALSE(res);
+  EXPECT_OUTCOME_TRUE_1(datastore->set(cid1, value));
+  EXPECT_OUTCOME_TRUE_1(datastore->remove(cid1));
+  EXPECT_OUTCOME_EQ(datastore->contains(cid1), false);
 }
 
 /**
@@ -146,11 +125,27 @@ TEST_F(DatastoreIntegrationTest, RemoveSuccess) {
  * @then all operations succeed and datastore still contains cid1
  */
 TEST_F(DatastoreIntegrationTest, RemoveNotExistingSuccess) {
-  auto cid1 = makeCid();
-  auto cid2 = makeCid();
-  auto value = makeRandomBuffer();
   EXPECT_OUTCOME_TRUE_1(datastore->set(cid1, value));
   EXPECT_OUTCOME_TRUE_1(datastore->remove(cid2));
-  EXPECT_OUTCOME_TRUE(res,datastore->contains(cid1));
-  ASSERT_TRUE(res);
+  EXPECT_OUTCOME_EQ(datastore->contains(cid1), true);
+}
+
+/** Setting same key twice succeeds */
+TEST_F(DatastoreIntegrationTest, SetTwice) {
+  EXPECT_OUTCOME_TRUE_1(datastore->set(cid1, value));
+  EXPECT_OUTCOME_TRUE_1(datastore->set(cid1, value));
+}
+
+/**
+ * @given opened datastore with some values stored
+ * @when close datastore and open again
+ * @then values are stored persistently
+ */
+TEST_F(DatastoreIntegrationTest, PersistentStorage) {
+  EXPECT_OUTCOME_TRUE_1(datastore->set(cid1, value));
+  datastore.reset();
+
+  EXPECT_OUTCOME_TRUE(open_again,
+                      LeveldbDatastore::create(leveldb_path.string(), options));
+  EXPECT_OUTCOME_EQ(open_again->contains(cid1), true);
 }
