@@ -9,6 +9,7 @@ add_library(proof_param_provider
 
 target_link_libraries(proof_param_provider
         Boost::system
+        outcome
         )
 
 add_library(proofs

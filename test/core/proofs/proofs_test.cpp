@@ -19,12 +19,10 @@ using fc::storage::filestore::Path;
 
 class ProofsTest : public test::BaseFS_Test {
  public:
-  ProofsTest() : test::BaseFS_Test("/tmp/fc_proofs_test/") {}
+  ProofsTest() : test::BaseFS_Test("fc_proofs_test") {
+    //TODO: Download proofs parameters
+  }
 };
-
-TEST_F(ProofsTest, GetParam) {
-  ProofParamProvider::getParams();
-}
 
 TEST_F(ProofsTest, ValidPoSt) {
   Path metadata_dir = boost::filesystem::unique_path(
