@@ -10,6 +10,6 @@ OUTCOME_CPP_DEFINE_CATEGORY(fc::proofs, ProofsError, e) {
 
   switch (e) {
     case (ProofsError::UNKNOWN):
-      return "FileLock: unknown error";
+      return "Proofs: unknown error";
   }
 }

@@ -37,4 +37,18 @@ namespace fc::crypto::blake2b {
     return res;
   }
 
+    fc::outcome::result<Blake2b512Hash> blake2b_512(
+            gsl::span<const uint8_t> to_hash) {
+        Blake2b512Hash res{};
+        if (::blake2b(res.data(),
+                      BLAKE2B512_HASH_LENGTH,
+                      nullptr,
+                      0,
+                      to_hash.data(),
+                      to_hash.size())
+            != 0)
+            return Blake2bError::CANNOT_INIT;
+        return res;
+    }
+
 }  // namespace fc::crypto::blake2b

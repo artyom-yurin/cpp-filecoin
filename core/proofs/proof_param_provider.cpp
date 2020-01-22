@@ -13,14 +13,51 @@
 #include <common/outcome.hpp>
 #include <cstdlib>
 #include <iostream>
+#include <regex>
 #include <string>
+#include <thread>
 #include "boost/filesystem.hpp"
+#include "crypto/blake2/blake2b160.hpp"
+#include "proofs/proof_param_provider_error.hpp"
 
 namespace fc::proofs {
 
   boost::mutex ProofParamProvider::fetch_mutex_ = boost::mutex();
 
-  auto const gateway = "https://ipfs.io/ipfs/";
+  struct responseParseUrl {
+    std::string host;
+    std::string target;
+  };
+
+  bool hasSuffix(std::string const &fullString, std::string const &ending) {
+    if (fullString.length() >= ending.length()) {
+      return (fullString.compare(fullString.length() - ending.length(),
+                                 ending.length(),
+                                 ending)
+              == 0);
+    } else {
+      return false;
+    }
+  }
+
+  outcome::result<responseParseUrl> parseUrl(const std::string &url_str) {
+    responseParseUrl response{};
+
+    std::smatch match;
+    std::regex reg(
+        "(https|http):\\/\\/([A-Za-z0-9\\-.]+)(\\/[\\/A-Za-z0-9\\-.]+)");
+
+    if (std::regex_match(url_str, match, reg)) {
+      response.host = match[2];
+      response.target = match[3];
+    } else {
+      return outcome::success();  // ERROR
+    }
+
+    return response;
+  }
+
+  auto const default_gateway = "https://ipfs.io/ipfs/";
   auto const param_dir = "/var/tmp/filecoin-proof-parameters";
   auto const dir_env = "FIL_PROOFS_PARAMETER_CACHE";
 
@@ -31,15 +68,16 @@ namespace fc::proofs {
 
   outcome::result<void> doFetch(const std::string &out, paramFile info) {
     try {
-      auto const host = "ipfs.io";
-      auto const port = "80";
-      std::string target = "/ipfs/";
-      int version = 11;
-
-      std::string custom_gateway = std::getenv("IPFS_GATEWAY");
-      if (custom_gateway != "") {
-        // TODO: process gateway
+      std::string gateway = default_gateway;
+      if (char *custom_gateway = std::getenv("IPFS_GATEWAY")) {
+        gateway = custom_gateway;
       }
+
+      OUTCOME_TRY(url, parseUrl(gateway));
+      auto const host = url.host;
+      auto target = url.target;
+      auto const port = "80";
+      int version = 11;
 
       boost::filesystem::fstream file;
       file.open(out,
@@ -87,6 +125,7 @@ namespace fc::proofs {
       // Receive the HTTP response
       http::read(stream, buffer, res);
 
+      // TODO: write into file in proof dir
       // Write the message to standard out
       std::cout << res << std::endl;
 
@@ -108,67 +147,102 @@ namespace fc::proofs {
   }
 
   std::string getParamDir() {
-    std::string dir = std::getenv(dir_env);
+    if (char *dir = std::getenv(dir_env)) return dir;
 
-    if (dir == "") return param_dir;
-
-    return dir;
+    return param_dir;
   }
 
   outcome::result<void> ProofParamProvider::getParams(
-      const std::vector<uint8_t> &param_bytes, uint64_t storage_size) {
-    boost::filesystem::create_directories(
-        getParamDir());  // TODO: process errors
+      const std::vector<paramFile> &param_files, uint64_t storage_size) {
+    try {
+      boost::filesystem::create_directories(getParamDir());
+    } catch (const std::exception &e) {
+      std::cerr << "Error: " << e.what() << "\n";
+      return outcome::success();  // ERROR
+    }
+    std::vector<std::thread> threads;
+    for (const auto param_file : param_files) {
+      if (param_file.sector_size != storage_size
+          && hasSuffix(param_file.name, ".params")) {
+        continue;
+      }
 
-    // Parse Bytes or JSON(change parameter)
+      std::thread t(fetch, param_file);
 
-    // For each and create tread for each download
+      threads.push_back(std::move(t));
+    }
+
+    for (auto &th : threads) {
+      th.join();
+    }
 
     return outcome::success();
   }
 
-  outcome::result<void> checkFile(const std::string &path,
-                                  const paramFile &info) {
-    if (std::getenv("TRUST_PARAMS") == "1") {
+  outcome::result<void> ProofParamProvider::checkFile(const std::string &path,
+                                                      const paramFile &info) {
+    char *res = std::getenv("TRUST_PARAMS");
+    if (res && std::strcmp(res, "1") == 0) {
       // Assuming parameter files are ok. DO NOT USE IN PRODUCTION
       return outcome::success();
     }
 
-    // TODO blake2b code file
+    std::ifstream ifs(path, std::ios::binary);
 
-    // TODO get sum
-    // TODO get first 16 bits
-    // compare with digest
+    if (!ifs.is_open()) return ProofParamProviderError::FILE_DOES_NOT_OPEN;
+
+    // read file
+    std::vector<uint8_t> file_bytes = {};
+
+    uint8_t ch = ifs.get();
+    while (!ifs.eof()) {
+      file_bytes.push_back(ch);
+      ch = ifs.get();
+    }
+
+    gsl::span<uint8_t> content(file_bytes.data(), file_bytes.size());
+
+    OUTCOME_TRY(sum, crypto::blake2b::blake2b_512(content));
+
+    if (common::hex_lower(gsl::span<uint8_t>(sum.data(), 16)) != info.digest) {
+      return ProofParamProviderError::CHECKSUM_MISMATCH;
+    }
 
     return outcome::success();
   }
 
-  outcome::result<void> ProofParamProvider::fetch(const std::string &name,
-                                                  const paramFile &info) {
-    auto path = boost::filesystem::path(getParamDir()) / name;
+  void ProofParamProvider::fetch(const paramFile &info) {
+    auto path = boost::filesystem::path(getParamDir())
+                / boost::filesystem::path(info.name);
     auto res = checkFile(path.string(), info);
-    if (!res.has_error()) return outcome::success();
-    // TODO: Log error
+    if (!res.has_error()) {
+      return;  // All is right
+    } else if (!boost::filesystem::exists(path)) {
+      std::cerr << "Error\n";
+      // TODO: more concrete
+    }
 
     fetch_mutex_.lock();
 
     auto fetch_res = doFetch(path.string(), info);
 
     if (fetch_res.has_error()) {
+      // TODO write error
       fetch_mutex_.unlock();
-      return fetch_res.error();
+      return;
     }
 
     res = checkFile(path.string(), info);
 
     if (res.has_error()) {
+      // TODO write error
       boost::filesystem::remove(path);
       fetch_mutex_.unlock();
-      return res.error();
+      return;
     }
 
     fetch_mutex_.unlock();
 
-    return outcome::success();
+    return;
   }
 }  // namespace fc::proofs

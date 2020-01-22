@@ -7,11 +7,11 @@
 
 #include <gtest/gtest.h>
 #include <random>
+#include "proofs/proof_param_provider.hpp"
 #include "proofs/proofs_error.hpp"
 #include "storage/filestore/impl/filesystem/filesystem_file.hpp"
 #include "testutil/outcome.hpp"
 #include "testutil/storage/base_fs_test.hpp"
-#include "proofs/proof_param_provider.hpp"
 
 using fc::storage::filestore::File;
 using fc::storage::filestore::FileSystemFile;
@@ -20,13 +20,21 @@ using fc::storage::filestore::Path;
 class ProofsTest : public test::BaseFS_Test {
  public:
   ProofsTest() : test::BaseFS_Test("fc_proofs_test") {
-    //TODO: Download proofs parameters
+    // TODO: Download proofs parameters
   }
 };
 
+TEST_F(ProofsTest, TEst) {
+  // fc::proofs::ProofParamProvider::getParams({fc::proofs::paramFile()}, 100);
+  fc::proofs::paramFile p;
+  p.digest = "9ef4b7804ba48ca6b977e6ab09283414";
+  EXPECT_OUTCOME_TRUE_1(
+      fc::proofs::ProofParamProvider::checkFile("some.txt", p));
+}
+
 TEST_F(ProofsTest, ValidPoSt) {
   Path metadata_dir = boost::filesystem::unique_path(
-      fs::canonical(base_path).append("%%%%%-metadata"))
+                          fs::canonical(base_path).append("%%%%%-metadata"))
                           .string();
   boost::filesystem::create_directory(metadata_dir);
   Path sealed_sectors_dir =

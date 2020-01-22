@@ -5,11 +5,13 @@
 
 add_library(proof_param_provider
         proof_param_provider.cpp
+        proof_param_provider_error.cpp
         )
 
 target_link_libraries(proof_param_provider
         Boost::system
         outcome
+        blake2
         )
 
 add_library(proofs

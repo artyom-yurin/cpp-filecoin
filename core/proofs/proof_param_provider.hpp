@@ -6,12 +6,13 @@
 #ifndef CPP_FILECOIN_PROOF_PARAM_PROVIDER_HPP
 #define CPP_FILECOIN_PROOF_PARAM_PROVIDER_HPP
 
-#include "common/outcome.hpp"
 #include "boost/thread/mutex.hpp"
+#include "common/outcome.hpp"
 
 namespace fc::proofs {
 
   struct paramFile {
+    std::string name;
     std::string cid;
     std::string digest;
     uint64_t sector_size;
@@ -20,11 +21,13 @@ namespace fc::proofs {
   class ProofParamProvider {
    public:
     static outcome::result<void> getParams(
-        const std::vector<uint8_t> &param_bytes, uint64_t storage_size);
+        const std::vector<paramFile> &param_files, uint64_t storage_size);
+
+    static outcome::result<void> checkFile(const std::string &path,
+                                           const paramFile &info);
 
    private:
-    static outcome::result<void> fetch(const std::string &name,
-                                       const paramFile &info);
+    static void fetch(const paramFile &info);
 
     static boost::mutex fetch_mutex_;
   };
