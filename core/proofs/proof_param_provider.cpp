@@ -20,6 +20,8 @@ namespace fc::proofs {
 
   boost::mutex ProofParamProvider::fetch_mutex_ = boost::mutex();
 
+  void parseUrl(const std::string &url_str);
+
   auto const gateway = "https://ipfs.io/ipfs/";
   auto const param_dir = "/var/tmp/filecoin-proof-parameters";
   auto const dir_env = "FIL_PROOFS_PARAMETER_CACHE";
@@ -38,7 +40,7 @@ namespace fc::proofs {
 
       std::string custom_gateway = std::getenv("IPFS_GATEWAY");
       if (custom_gateway != "") {
-        // TODO: process gateway
+        parseUrl(custom_gateway);
       }
 
       boost::filesystem::fstream file;
@@ -87,6 +89,7 @@ namespace fc::proofs {
       // Receive the HTTP response
       http::read(stream, buffer, res);
 
+      // TODO: write into file in proof dir
       // Write the message to standard out
       std::cout << res << std::endl;
 
@@ -120,9 +123,9 @@ namespace fc::proofs {
     boost::filesystem::create_directories(
         getParamDir());  // TODO: process errors
 
-    // Parse Bytes or JSON(change parameter)
+    // TODO: Parse Bytes or JSON(change parameter)
 
-    // For each and create tread for each download
+    // TODO: For each and create tread for each download
 
     return outcome::success();
   }
