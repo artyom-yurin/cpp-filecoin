@@ -23,7 +23,6 @@
 namespace fc::proofs {
 
   boost::mutex ProofParamProvider::fetch_mutex_ = boost::mutex();
-
   struct responseParseUrl {
     std::string host;
     std::string target;
@@ -78,6 +77,11 @@ namespace fc::proofs {
       auto target = url.target;
       auto const port = "80";
       int version = 11;
+
+      std::string custom_gateway = std::getenv("IPFS_GATEWAY");
+      if (custom_gateway != "") {
+        parseUrl(custom_gateway);
+      }
 
       boost::filesystem::fstream file;
       file.open(out,
