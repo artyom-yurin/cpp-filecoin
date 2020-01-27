@@ -8,6 +8,7 @@
 
 #include "boost/thread/mutex.hpp"
 #include "common/outcome.hpp"
+#include "gsl/span"
 
 namespace fc::proofs {
 
@@ -25,6 +26,9 @@ namespace fc::proofs {
 
     static outcome::result<void> checkFile(const std::string &path,
                                            const paramFile &info);
+
+    static outcome::result<std::vector<paramFile>> readJson(
+        const std::string &path);
 
    private:
     static void fetch(const paramFile &info);

@@ -10,6 +10,8 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/version.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/property_tree/json_parser.hpp>
 #include <common/outcome.hpp>
 #include <cstdlib>
 #include <iostream>
@@ -248,5 +250,50 @@ namespace fc::proofs {
     fetch_mutex_.unlock();
 
     return;
+  }
+
+  namespace pt = boost::property_tree;
+
+  template <typename T>
+  outcome::result<std::decay_t<T>> ensure(boost::optional<T> opt_entry) {
+    if (not opt_entry) {
+      return ProofParamProviderError::MISSING_ENTRY;
+    }
+    return opt_entry.value();
+  }
+
+  outcome::result<std::vector<paramFile>> ProofParamProvider::readJson(
+      const std::string &path) {
+    pt::ptree tree;
+    try {
+      pt::read_json(path, tree);
+    } catch (pt::json_parser_error &e) {
+      return ProofParamProviderError::INVALID_JSON;
+    }
+
+    std::vector<paramFile> result = {};
+
+    for (const auto &elem : tree) {
+      std::string some = elem.first;
+      OUTCOME_TRY(cid, ensure(elem.second.get_child_optional("cid")));
+      OUTCOME_TRY(digest, ensure(elem.second.get_child_optional("digest")));
+      OUTCOME_TRY(sector_size,
+                  ensure(elem.second.get_child_optional("sector_size")));
+
+      paramFile param_file;
+      param_file.name = elem.first;
+      param_file.cid = cid.data();
+      param_file.digest = digest.data();
+      try {
+        param_file.sector_size =
+            boost::lexical_cast<uint64_t>(sector_size.data());
+      } catch (const boost::bad_lexical_cast &e) {
+        return ProofParamProviderError::INVALID_SECTOR_SIZE;
+      }
+
+      result.push_back(param_file);
+    }
+
+    return result;
   }
 }  // namespace fc::proofs

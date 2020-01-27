@@ -15,7 +15,10 @@ namespace fc::proofs {
    */
   enum class ProofParamProviderError {
     CHECKSUM_MISMATCH = 1,
-    FILE_DOES_NOT_OPEN = 2,
+    FILE_DOES_NOT_OPEN,
+    MISSING_ENTRY,
+    INVALID_SECTOR_SIZE,
+    INVALID_JSON,
   };
 
 }  // namespace fc::proofs
