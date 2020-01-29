@@ -14,6 +14,17 @@ target_link_libraries(proof_param_provider
         blake2
         )
 
+add_custom_command(
+        TARGET proof_param_provider PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+        /tmp/filecoin-proof-parameters)
+
+add_custom_command(
+        TARGET proof_param_provider PRE_LINK
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_CURRENT_SOURCE_DIR}/parameters.json
+        /tmp/filecoin-proof-parameters/parameters.json)
+
 add_library(proofs
         proofs.cpp
         proofs_error.cpp

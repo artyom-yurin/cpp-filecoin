@@ -25,7 +25,8 @@
 namespace fc::proofs {
 
   boost::mutex ProofParamProvider::fetch_mutex_ = boost::mutex();
-  struct responseParseUrl {
+
+  struct ResponseParseUrl {
     std::string host;
     std::string target;
   };
@@ -41,8 +42,8 @@ namespace fc::proofs {
     }
   }
 
-  outcome::result<responseParseUrl> parseUrl(const std::string &url_str) {
-    responseParseUrl response{};
+  outcome::result<ResponseParseUrl> parseUrl(const std::string &url_str) {
+    ResponseParseUrl response{};
 
     std::smatch match;
     std::regex reg(
@@ -67,29 +68,21 @@ namespace fc::proofs {
   namespace net = boost::asio;     // from <boost/asio.hpp>
   using tcp = net::ip::tcp;        // from <boost/asio/ip/tcp.hpp>
 
-  outcome::result<void> doFetch(const std::string &out, paramFile info) {
+  outcome::result<void> doFetch(const std::string &out, ParamFile info) {
     try {
       std::string gateway = default_gateway;
       if (char *custom_gateway = std::getenv("IPFS_GATEWAY")) {
         gateway = custom_gateway;
       }
-
       OUTCOME_TRY(url, parseUrl(gateway));
       auto const host = url.host;
       auto target = url.target;
       auto const port = "80";
       int version = 11;
 
-      std::string custom_gateway = std::getenv("IPFS_GATEWAY");
-      if (custom_gateway != "") {
-        parseUrl(custom_gateway);
-      }
-
-      boost::filesystem::fstream file;
-      file.open(out,
-                std::ios_base::in | std::ios_base::out | std::ios_base::app);
-
-      boost::uintmax_t f_size = boost::filesystem::file_size(out);
+      boost::uintmax_t f_size = boost::filesystem::exists(out)
+                                    ? boost::filesystem::file_size(out)
+                                    : 0;
 
       // The io_context is required for all I/O
       net::io_context ioc;
@@ -114,11 +107,8 @@ namespace fc::proofs {
       http::request<http::string_body> req{http::verb::get, target, version};
       req.set(http::field::host, host);
       req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
-      std::string v = "bytes=";
-      v += f_size;
-      v += "-";
+      std::string v = "bytes=" + std::to_string(f_size) + "-";
       req.insert("Range", v);
-
       // Send the HTTP request to the remote host
       http::write(stream, req);
 
@@ -126,15 +116,14 @@ namespace fc::proofs {
       beast::flat_buffer buffer;
 
       // Declare a container to hold the response
-      http::response<http::dynamic_body> res;
-
+      http::response_parser<http::file_body> res;
+      res.body_limit((std::numeric_limits<std::uint64_t>::max)());
+      boost::system::error_code ec_file;
+      // Write the message to standard out
+      res.get().body().open(
+          out.c_str(), boost::beast::file_mode::append, ec_file);
       // Receive the HTTP response
       http::read(stream, buffer, res);
-
-      // TODO: write into file in proof dir
-      // Write the message to standard out
-      std::cout << res << std::endl;
-
       // Gracefully close the socket
       beast::error_code ec;
       stream.socket().shutdown(tcp::socket::shutdown_both, ec);
@@ -159,7 +148,7 @@ namespace fc::proofs {
   }
 
   outcome::result<void> ProofParamProvider::getParams(
-      const std::vector<paramFile> &param_files, uint64_t storage_size) {
+      const gsl::span<ParamFile> &param_files, uint64_t storage_size) {
     try {
       boost::filesystem::create_directories(getParamDir());
     } catch (const std::exception &e) {
@@ -167,7 +156,7 @@ namespace fc::proofs {
       return outcome::success();  // ERROR
     }
     std::vector<std::thread> threads;
-    for (const auto param_file : param_files) {
+    for (const auto &param_file : param_files) {
       if (param_file.sector_size != storage_size
           && hasSuffix(param_file.name, ".params")) {
         continue;
@@ -185,8 +174,8 @@ namespace fc::proofs {
     return outcome::success();
   }
 
-  outcome::result<void> ProofParamProvider::checkFile(const std::string &path,
-                                                      const paramFile &info) {
+  outcome::result<void> checkFile(const std::string &path,
+                                  const ParamFile &info) {
     char *res = std::getenv("TRUST_PARAMS");
     if (res && std::strcmp(res, "1") == 0) {
       // Assuming parameter files are ok. DO NOT USE IN PRODUCTION
@@ -217,14 +206,13 @@ namespace fc::proofs {
     return outcome::success();
   }
 
-  void ProofParamProvider::fetch(const paramFile &info) {
+  void ProofParamProvider::fetch(const ParamFile &info) {
     auto path = boost::filesystem::path(getParamDir())
                 / boost::filesystem::path(info.name);
     auto res = checkFile(path.string(), info);
     if (!res.has_error()) {
       return;  // All is right
     } else if (!boost::filesystem::exists(path)) {
-      std::cerr << "Error\n";
       // TODO: more concrete
     }
 
@@ -262,7 +250,7 @@ namespace fc::proofs {
     return opt_entry.value();
   }
 
-  outcome::result<std::vector<paramFile>> ProofParamProvider::readJson(
+  outcome::result<std::vector<ParamFile>> ProofParamProvider::readJson(
       const std::string &path) {
     pt::ptree tree;
     try {
@@ -271,7 +259,7 @@ namespace fc::proofs {
       return ProofParamProviderError::INVALID_JSON;
     }
 
-    std::vector<paramFile> result = {};
+    std::vector<ParamFile> result = {};
 
     for (const auto &elem : tree) {
       std::string some = elem.first;
@@ -280,7 +268,7 @@ namespace fc::proofs {
       OUTCOME_TRY(sector_size,
                   ensure(elem.second.get_child_optional("sector_size")));
 
-      paramFile param_file;
+      ParamFile param_file;
       param_file.name = elem.first;
       param_file.cid = cid.data();
       param_file.digest = digest.data();

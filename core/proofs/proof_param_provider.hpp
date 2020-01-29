@@ -12,7 +12,7 @@
 
 namespace fc::proofs {
 
-  struct paramFile {
+  struct ParamFile {
     std::string name;
     std::string cid;
     std::string digest;
@@ -22,16 +22,13 @@ namespace fc::proofs {
   class ProofParamProvider {
    public:
     static outcome::result<void> getParams(
-        const std::vector<paramFile> &param_files, uint64_t storage_size);
+        const gsl::span<ParamFile> &param_files, uint64_t storage_size);
 
-    static outcome::result<void> checkFile(const std::string &path,
-                                           const paramFile &info);
-
-    static outcome::result<std::vector<paramFile>> readJson(
+    static outcome::result<std::vector<ParamFile>> readJson(
         const std::string &path);
 
    private:
-    static void fetch(const paramFile &info);
+    static void fetch(const ParamFile &info);
 
     static boost::mutex fetch_mutex_;
   };

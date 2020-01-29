@@ -20,19 +20,29 @@ using fc::storage::filestore::Path;
 class ProofsTest : public test::BaseFS_Test {
  public:
   ProofsTest() : test::BaseFS_Test("fc_proofs_test") {
-    // TODO: Download proofs parameters
+    auto res = fc::proofs::ProofParamProvider::readJson(
+        "/tmp/filecoin-proof-parameters/parameters.json");
+    if (!res.has_error()) {
+      params = std::move(res.value());
+    }
   }
+
+ protected:
+  std::vector<fc::proofs::ParamFile> params;
 };
 
-TEST_F(ProofsTest, TEst) {
-  // fc::proofs::ProofParamProvider::getParams({fc::proofs::paramFile()}, 100);
-  fc::proofs::paramFile p;
-  p.digest = "9ef4b7804ba48ca6b977e6ab09283414";
-  EXPECT_OUTCOME_TRUE_1(
-      fc::proofs::ProofParamProvider::checkFile("some.txt", p));
-}
-
 TEST_F(ProofsTest, ValidPoSt) {
+  uint64_t challenge_count = 2;
+  uint8_t porep_proof_partitions = 10;
+  fc::common::Blob<32> prover_id{{6, 7, 8}};
+  fc::common::Blob<32> randomness{{9, 9, 9}};
+  fc::common::Blob<32> ticket{{5, 4, 2}};
+  fc::common::Blob<32> seed{{7, 4, 2}};
+  uint64_t sector_size = 1024;
+  uint64_t sector_id = 42;
+  EXPECT_OUTCOME_TRUE_1(
+      fc::proofs::ProofParamProvider::getParams(params, sector_size));
+
   Path metadata_dir = boost::filesystem::unique_path(
                           fs::canonical(base_path).append("%%%%%-metadata"))
                           .string();
@@ -57,23 +67,6 @@ TEST_F(ProofsTest, ValidPoSt) {
           fs::canonical(base_path).append("%%%%%-sector-cache-dir"))
           .string();
   boost::filesystem::create_directory(sector_cache_dir_path);
-
-  uint64_t challenge_count = 2;                //:= uint64(2)
-  uint8_t porep_proof_partitions = 10;         //:= uint8(10)
-  fc::common::Blob<32> prover_id{{6, 7, 8}};   //:= [32]byte{6, 7, 8}
-  fc::common::Blob<32> randomness{{9, 9, 9}};  //:= [32]byte{9, 9, 9}
-  fc::common::Blob<32> ticket{{5, 4, 2}};      // [32]byte{5, 4, 2}
-  fc::common::Blob<32> seed{{7, 4, 2}};
-  uint64_t sector_size = 1024;  //:= uint64(1024)
-  uint64_t sector_id = 42;      //:= uint64(42)
-
-  fc::common::Blob<1016> some_bytes;
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<uint8_t> dis(0, 255);
-  for (size_t i = 0; i < some_bytes.size(); i++) {
-    some_bytes[i] = dis(gen);
-  }
 
   Path staged_sector_file =
       boost::filesystem::unique_path(
@@ -110,6 +103,14 @@ TEST_F(ProofsTest, ValidPoSt) {
           fs::canonical(base_path).append("%%%%%-unseal-output-file-d"))
           .string();
   boost::filesystem::ofstream(unseal_output_file_d).close();
+
+  fc::common::Blob<1016> some_bytes;
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<uint8_t> dis(0, 255);
+  for (size_t i = 0; i < some_bytes.size(); i++) {
+    some_bytes[i] = dis(gen);
+  }
 
   auto path_model = fs::canonical(base_path).append("%%%%%");
   Path piece_file_a_path = boost::filesystem::unique_path(path_model).string();
