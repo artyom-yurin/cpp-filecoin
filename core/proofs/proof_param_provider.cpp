@@ -53,7 +53,7 @@ namespace fc::proofs {
       response.host = match[2];
       response.target = match[3];
     } else {
-      return outcome::success();  // ERROR
+      return outcome::success();  // TODO: ERROR
     }
 
     return response;
@@ -136,7 +136,7 @@ namespace fc::proofs {
       // If we get here then the connection is closed gracefully
     } catch (std::exception const &e) {
       std::cerr << "Error: " << e.what() << std::endl;
-      return outcome::success();  // ERROR
+      return outcome::success();  // TODO: ERROR
     }
     return outcome::success();
   }
@@ -153,7 +153,7 @@ namespace fc::proofs {
       boost::filesystem::create_directories(getParamDir());
     } catch (const std::exception &e) {
       std::cerr << "Error: " << e.what() << "\n";
-      return outcome::success();  // ERROR
+      return outcome::success();  // TODO: ERROR
     }
     std::vector<std::thread> threads;
     for (const auto &param_file : param_files) {
@@ -213,7 +213,7 @@ namespace fc::proofs {
     if (!res.has_error()) {
       return;  // All is right
     } else if (!boost::filesystem::exists(path)) {
-      // TODO: more concrete
+      // TODO: warning more concrete
     }
 
     fetch_mutex_.lock();
