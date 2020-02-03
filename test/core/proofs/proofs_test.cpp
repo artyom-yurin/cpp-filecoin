@@ -145,6 +145,7 @@ TEST_F(ProofsTest, ValidPoSt) {
       fc::proofs::writeWithoutAlignment(
           piece_file_a_path, piece_commitment_a_size, staged_sector_file));
   ASSERT_EQ(resA.total_write_unpadded, piece_commitment_a_size);
+  ASSERT_EQ(resA.comm_p, pA.comm_p);
 
   EXPECT_OUTCOME_TRUE(resB,
                       fc::proofs::writeWithAlignment(piece_file_b_path,
@@ -160,9 +161,15 @@ TEST_F(ProofsTest, ValidPoSt) {
                       fc::proofs::generatePieceCommitmentFromFile(
                           piece_file_b_path, piece_commitment_b_size));
   pB.comm_p = piece_commitment_b;
+  ASSERT_EQ(resB.left_alignment_unpadded, 381);
+  ASSERT_EQ(resB.total_write_unpadded, 889);
+  ASSERT_EQ(resB.comm_p, pB.comm_p);
 
   public_pieces.push_back(pA);
   public_pieces.push_back(pB);
+
+  EXPECT_OUTCOME_TRUE(
+      comm_d, fc::proofs::generateDataCommitment(sector_size, public_pieces));
 
   // pre-commit the sector
   EXPECT_OUTCOME_TRUE(output,
@@ -176,51 +183,136 @@ TEST_F(ProofsTest, ValidPoSt) {
                                                 ticket,
                                                 public_pieces));
 
-  // commit the sector
-  EXPECT_OUTCOME_TRUE(proof,
-                      fc::proofs::sealCommit(sector_size,
-                                             porep_proof_partitions,
-                                             sector_cache_dir_path,
-                                             sector_id,
-                                             prover_id,
-                                             ticket,
-                                             seed,
-                                             public_pieces,
-                                             output));
+  ASSERT_EQ(comm_d, output.comm_d);
 
-  EXPECT_OUTCOME_TRUE(isValid,
-                      fc::proofs::verifySeal(sector_size,
-                                             output.comm_r,
-                                             output.comm_d,
-                                             prover_id,
-                                             ticket,
-                                             seed,
-                                             sector_id,
-                                             proof));
-  ASSERT_TRUE(isValid);
+//  // commit the sector
+//  EXPECT_OUTCOME_TRUE(proof,
+//                      fc::proofs::sealCommit(sector_size,
+//                                             porep_proof_partitions,
+//                                             sector_cache_dir_path,
+//                                             sector_id,
+//                                             prover_id,
+//                                             ticket,
+//                                             seed,
+//                                             public_pieces,
+//                                             output));
+//
+//  EXPECT_OUTCOME_TRUE(isValid,
+//                      fc::proofs::verifySeal(sector_size,
+//                                             output.comm_r,
+//                                             output.comm_d,
+//                                             prover_id,
+//                                             ticket,
+//                                             seed,
+//                                             sector_id,
+//                                             proof));
+//  ASSERT_TRUE(isValid);
+//
+//  EXPECT_OUTCOME_TRUE_1(fc::proofs::unseal(sector_size,
+//                                           porep_proof_partitions,
+//                                           sector_cache_dir_path,
+//                                           sealed_sector_file,
+//                                           unseal_output_file_a,
+//                                           sector_id,
+//                                           prover_id,
+//                                           ticket,
+//                                           output.comm_d));
+//
+//  // read file
+//  std::vector<uint8_t> file_a_bytes = {};
+//
+//  std::ifstream file_a(unseal_output_file_a, std::ios::binary);
+//
+//  uint8_t ch = file_a.get();
+//  while (!file_a.eof()) {
+//    file_a_bytes.push_back(ch);
+//    ch = file_a.get();
+//  }
+//
+//  file_a.close();
+//
+//  ASSERT_EQ(gsl::span<uint8_t>(file_a_bytes.data(), 127),
+//            gsl::span<uint8_t>(some_bytes.data(), 127));
+//  ASSERT_EQ(gsl::span<uint8_t>(file_a_bytes.data() + 508, 508),
+//            gsl::span<uint8_t>(some_bytes.data(), 508));
+//
+//  EXPECT_OUTCOME_TRUE_1(fc::proofs::unsealRange(sector_size,
+//                                                porep_proof_partitions,
+//                                                sector_cache_dir_path,
+//                                                sealed_sector_file,
+//                                                unseal_output_file_b,
+//                                                sector_id,
+//                                                prover_id,
+//                                                ticket,
+//                                                output.comm_d,
+//                                                0,
+//                                                127));
+//
+//  std::vector<uint8_t> file_b_bytes = {};
+//
+//  std::ifstream file_b(unseal_output_file_b, std::ios::binary);
+//
+//  ch = file_b.get();
+//  while (!file_b.eof()) {
+//    file_b_bytes.push_back(ch);
+//    ch = file_b.get();
+//  }
+//
+//  ASSERT_EQ(file_b_bytes.size(), 127);
+//  ASSERT_EQ(gsl::span<uint8_t>(file_b_bytes.data(), 127),
+//            gsl::span<uint8_t>(some_bytes.data(), 127));
+//
+//  EXPECT_OUTCOME_TRUE_1(fc::proofs::unsealRange(sector_size,
+//                                                porep_proof_partitions,
+//                                                sector_cache_dir_path,
+//                                                sealed_sector_file,
+//                                                unseal_output_file_c,
+//                                                sector_id,
+//                                                prover_id,
+//                                                ticket,
+//                                                output.comm_d,
+//                                                508,
+//                                                508));
+//
+//  std::vector<uint8_t> file_c_bytes = {};
+//
+//  std::ifstream file_c(unseal_output_file_c, std::ios::binary);
+//
+//  ch = file_c.get();
+//  while (!file_c.eof()) {
+//    file_c_bytes.push_back(ch);
+//    ch = file_c.get();
+//  }
+//
+//  ASSERT_EQ(file_c_bytes.size(), 508);
+//  ASSERT_EQ(gsl::span<uint8_t>(file_c_bytes.data(), 508),
+//            gsl::span<uint8_t>(some_bytes.data(), 508));
 
-  fc::proofs::SortedPublicSectorInfo public_info;
-  fc::proofs::PublicSectorInfo public_sector_info;
-  public_sector_info.sector_id = sector_id;
-  public_sector_info.comm_r = output.comm_r;
-  public_info.f.push_back(public_sector_info);
-
-  fc::proofs::SortedPrivateSectorInfo private_info;
   fc::proofs::PrivateSectorInfo private_sector_info;
   private_sector_info.sector_id = sector_id;
   private_sector_info.comm_r = output.comm_r;
   private_sector_info.cache_dir_path = sector_cache_dir_path;
   private_sector_info.sealed_sector_path = sealed_sector_file;
-  private_info.f.push_back(private_sector_info);
+  EXPECT_OUTCOME_TRUE(
+      private_info,
+      fc::proofs::newSortedPrivateSectorInfo({private_sector_info}));
+
+  fc::proofs::PublicSectorInfo public_sector_info;
+  public_sector_info.sector_id = sector_id;
+  public_sector_info.comm_r = output.comm_r;
+  EXPECT_OUTCOME_TRUE(
+      public_info, fc::proofs::newSortedPublicSectorInfo({public_sector_info}));
 
   EXPECT_OUTCOME_TRUE(
       candidates,
       fc::proofs::generateCandidates(
           sector_size, prover_id, randomness, challenge_count, private_info));
+
   EXPECT_OUTCOME_TRUE(
       proof_a,
       fc::proofs::generatePoSt(
           sector_size, prover_id, private_info, randomness, candidates))
+
   EXPECT_OUTCOME_TRUE(res,
                       fc::proofs::verifyPoSt(sector_size,
                                              public_info,
@@ -229,5 +321,5 @@ TEST_F(ProofsTest, ValidPoSt) {
                                              proof_a,
                                              candidates,
                                              prover_id));
-  ASSERT_TRUE(res) << "VerifyPoSt rejected the (standalone) proof as invalid";
+  ASSERT_TRUE(res);
 }

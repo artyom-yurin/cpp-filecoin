@@ -106,6 +106,12 @@ namespace fc::proofs {
     fc::common::Blob<CommitmentBytesLen> comm_p;
   };
 
+  outcome::result<fc::proofs::SortedPrivateSectorInfo>
+  newSortedPrivateSectorInfo(const std::vector<PrivateSectorInfo> &sector_info);
+
+  outcome::result<fc::proofs::SortedPublicSectorInfo> newSortedPublicSectorInfo(
+      const std::vector<PublicSectorInfo> &sector_info);
+
   outcome::result<fc::proofs::WriteWithoutAlignmentResult>
   writeWithoutAlignment(const std::string &piece_file_path,
                         const uint64_t piece_bytes,
@@ -139,6 +145,36 @@ namespace fc::proofs {
       const std::vector<PublicPieceInfo> &pieces,
       const RawSealPreCommitOutput &rspco);
 
+  outcome::result<void> unseal(
+      const uint64_t sector_size,
+      const uint8_t porep_proof_partitions,
+      const std::string &cache_dir_path,
+      const std::string &sealed_sector_path,
+      const std::string &unseal_output_path,
+      const uint64_t sector_id,
+      const fc::common::Blob<32> &prover_id,
+      const fc::common::Blob<32> &ticket,
+      const fc::common::Blob<CommitmentBytesLen> &comm_d);
+
+  outcome::result<void> unsealRange(
+      const uint64_t sector_size,
+      const uint8_t porep_proof_partitions,
+      const std::string &cache_dir_path,
+      const std::string &sealed_sector_path,
+      const std::string &unseal_output_path,
+      const uint64_t sector_id,
+      const fc::common::Blob<32> &prover_id,
+      const fc::common::Blob<32> &ticket,
+      const fc::common::Blob<CommitmentBytesLen> &comm_d,
+      const uint64_t offset,
+      const uint64_t length);
+
+  outcome::result<fc::common::Blob<32>> finalizeTicket(
+      const fc::common::Blob<32> &partial_ticket);
+
+  outcome::result<fc::common::Blob<CommitmentBytesLen>> generateDataCommitment(
+      const uint64_t sector_size, const std::vector<PublicPieceInfo> &pieces);
+
   outcome::result<fc::common::Blob<32>> generatePieceCommitmentFromFile(
       const std::string &piece_file, const uint64_t piece_size);
 
@@ -156,14 +192,15 @@ namespace fc::proofs {
       const fc::common::Blob<32> &randomness,
       const std::vector<Candidate> &winners);
 
-  outcome::result<bool> verifySeal(const uint64_t sector_size,
-                                   const fc::common::Blob<CommitmentBytesLen> &comm_r,
-                                   const fc::common::Blob<CommitmentBytesLen> &comm_d,
-                                   const fc::common::Blob<32> &prover_id,
-                                   const fc::common::Blob<32> &ticket,
-                                   const fc::common::Blob<32> &seed,
-                                   const uint64_t sector_id,
-                                   const std::vector<uint8_t> proof);
+  outcome::result<bool> verifySeal(
+      const uint64_t sector_size,
+      const fc::common::Blob<CommitmentBytesLen> &comm_r,
+      const fc::common::Blob<CommitmentBytesLen> &comm_d,
+      const fc::common::Blob<32> &prover_id,
+      const fc::common::Blob<32> &ticket,
+      const fc::common::Blob<32> &seed,
+      const uint64_t sector_id,
+      const std::vector<uint8_t> proof);
 
   outcome::result<bool> verifyPoSt(const uint64_t sector_size,
                                    const SortedPublicSectorInfo &sector_info,
