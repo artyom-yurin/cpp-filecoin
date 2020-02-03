@@ -13,6 +13,10 @@
 
 namespace fc::proofs {
 
+  // ******************
+  // TO CPP CASTED FUNCTIONS
+  // ******************
+
   Candidate cppCandidate(const FFICandidate *c_candidate) {
     Candidate candidate;
     candidate.sector_id = c_candidate->sector_id;
@@ -23,7 +27,7 @@ namespace fc::proofs {
     for (size_t i = 0; i < candidate.partial_ticket.size(); i++) {
       candidate.partial_ticket[i] = c_candidate->partial_ticket[i];
     }
-    return std::move(candidate);
+    return candidate;
   }
 
   std::vector<Candidate> cppCandidates(const FFICandidate *candidates_ptr,
@@ -41,6 +45,71 @@ namespace fc::proofs {
     return cpp_candidates;
   }
 
+  RawSealPreCommitOutput cppRawSealPreCommitOutput(
+      const FFISealPreCommitOutput &c_seal_pre_commit_output) {
+    RawSealPreCommitOutput cpp_seal_pre_commit_output;
+
+    for (size_t i = 0; i < CommitmentBytesLen; i++) {
+      cpp_seal_pre_commit_output.comm_d[i] = c_seal_pre_commit_output.comm_d[i];
+      cpp_seal_pre_commit_output.comm_r[i] = c_seal_pre_commit_output.comm_r[i];
+    }
+
+    return cpp_seal_pre_commit_output;
+  }
+
+  WriteWithoutAlignmentResult cppWriteWithoutAlignmentResult(
+      const uint64_t total_write_unpadded, const uint8_t *comm_p) {
+    WriteWithoutAlignmentResult result;
+
+    result.total_write_unpadded = total_write_unpadded;
+    for (size_t i = 0; i < CommitmentBytesLen; i++) {
+      result.comm_p[i] = comm_p[i];
+    }
+
+    return result;
+  }
+
+  WriteWithAlignmentResult cppWriteWithAlignmentResult(
+      const uint64_t left_alignment_unpadded,
+      const uint64_t total_write_unpadded,
+      const uint8_t *comm_p) {
+    WriteWithAlignmentResult result;
+
+    result.left_alignment_unpadded = left_alignment_unpadded;
+    result.total_write_unpadded = total_write_unpadded;
+    for (size_t i = 0; i < CommitmentBytesLen; i++) {
+      result.comm_p[i] = comm_p[i];
+    }
+
+    return result;
+  }
+
+  // ******************
+  // TO С CASTED FUNCTIONS
+  // ******************
+
+  FFISealPreCommitOutput cRawSealPreCommitOutput(
+      const RawSealPreCommitOutput &cpp_seal_pre_commit_output) {
+    FFISealPreCommitOutput c_seal_pre_commit_output{};
+
+    for (size_t i = 0; i < cpp_seal_pre_commit_output.comm_d.size(); i++) {
+      c_seal_pre_commit_output.comm_d[i] = cpp_seal_pre_commit_output.comm_d[i];
+    }
+    for (size_t i = 0; i < cpp_seal_pre_commit_output.comm_r.size(); i++) {
+      c_seal_pre_commit_output.comm_r[i] = cpp_seal_pre_commit_output.comm_r[i];
+    }
+
+    return c_seal_pre_commit_output;
+  }
+
+  FFISectorClass cSectorClass(const uint64_t sector_size,
+                              const uint8_t porep_proof_partitions) {
+    FFISectorClass sector_class;
+    sector_class.sector_size = sector_size;
+    sector_class.porep_proof_partitions = porep_proof_partitions;
+    return sector_class;
+  }
+
   FFICandidate cCandidate(const Candidate &cpp_candidate) {
     FFICandidate c_candidate;
     c_candidate.sector_id = cpp_candidate.sector_id;
@@ -55,56 +124,12 @@ namespace fc::proofs {
   }
 
   std::vector<FFICandidate> cCandidates(
-      const std::vector<Candidate> &cpp_candidates) {
+      const gsl::span<Candidate> &cpp_candidates) {
     std::vector<FFICandidate> c_candidates;
     for (const auto cpp_candidate : cpp_candidates) {
       c_candidates.push_back(cCandidate(cpp_candidate));
     }
     return c_candidates;
-  }
-
-  outcome::result<std::vector<Candidate>> generateCandidates(
-      const uint64_t sector_size,
-      const common::Blob<32> &prover_id,
-      const common::Blob<32> &randomness,
-      const uint64_t challenge_count,
-      const SortedPrivateSectorInfo &sorted_private_sector_info) {
-    const uint8_t(*c_randomness)[32] = &(randomness._M_elems);
-
-    const uint8_t(*c_prover_id)[32] = &(prover_id._M_elems);
-
-    FFIPrivateReplicaInfo
-        c_sorted_private_sector_info[sorted_private_sector_info.f.size()];
-    for (size_t i = 0; i < sorted_private_sector_info.f.size(); i++) {
-      c_sorted_private_sector_info[i].sector_id =
-          sorted_private_sector_info.f[i].sector_id;
-      c_sorted_private_sector_info[i].cache_dir_path =
-          sorted_private_sector_info.f[i].cache_dir_path.c_str();
-      c_sorted_private_sector_info[i].replica_path =
-          sorted_private_sector_info.f[i].sealed_sector_path.c_str();
-      for (size_t j = 0; j < sorted_private_sector_info.f[i].comm_r.size();
-           j++) {
-        c_sorted_private_sector_info[i].comm_r[j] =
-            sorted_private_sector_info.f[i].comm_r[j];
-      }
-    }
-
-    auto resPtr = generate_candidates(sector_size,
-                                      c_randomness,
-                                      challenge_count,
-                                      c_sorted_private_sector_info,
-                                      sorted_private_sector_info.f.size(),
-                                      c_prover_id);
-
-    if (resPtr->status_code != 0) {
-      std::cerr << resPtr->error_msg;
-      destroy_generate_candidates_response(resPtr);
-      return ProofsError::UNKNOWN;
-    }
-
-    auto result = cppCandidates(resPtr->candidates_ptr, resPtr->candidates_len);
-    destroy_generate_candidates_response(resPtr);
-    return result;
   }
 
   FFIPrivateReplicaInfo cPrivateSectorInfo(
@@ -126,76 +151,32 @@ namespace fc::proofs {
   }
 
   FFIPublicPieceInfo *cPublicPiecesInfo(
-      const std::vector<PublicPieceInfo> &cpp_public_pieces_info) {
+      const gsl::span<PublicPieceInfo> &cpp_public_pieces_info) {
     FFIPublicPieceInfo *c_public_pieces_info = (FFIPublicPieceInfo *)malloc(
         cpp_public_pieces_info.size() * sizeof(FFIPublicPieceInfo));
-    for (size_t i = 0; i < cpp_public_pieces_info.size(); i++) {
+    for (long i = 0; i < cpp_public_pieces_info.size(); i++) {
       c_public_pieces_info[i].num_bytes = cpp_public_pieces_info[i].size;
-      for (size_t j = 0; j < cpp_public_pieces_info[i].comm_p.size(); j++) {
+      for (size_t j = 0; j < CommitmentBytesLen; j++) {
         c_public_pieces_info[i].comm_p[j] = cpp_public_pieces_info[i].comm_p[j];
       }
     }
     return c_public_pieces_info;
   }
 
-  outcome::result<std::vector<uint8_t>> generatePoSt(
-      const uint64_t sectorSize,
-      const common::Blob<32> &prover_id,
-      const SortedPrivateSectorInfo &private_sector_info,
-      const common::Blob<32> &randomness,
-      const std::vector<Candidate> &winners) {
-    std::vector<FFICandidate> c_winners = cCandidates(winners);
-
-    const uint8_t(*c_randomness)[32] = &(randomness._M_elems);
-
-    const uint8_t(*c_prover_id)[32] = &(prover_id._M_elems);
-
-    FFIPrivateReplicaInfo c_private_sector_info[private_sector_info.f.size()];
-
-    for (size_t i = 0; i < private_sector_info.f.size(); i++) {
-      c_private_sector_info[i].sector_id = private_sector_info.f[i].sector_id;
-      c_private_sector_info[i].cache_dir_path =
-          private_sector_info.f[i].cache_dir_path.c_str();
-      c_private_sector_info[i].replica_path =
-          private_sector_info.f[i].sealed_sector_path.c_str();
-      for (size_t j = 0; j < private_sector_info.f[i].comm_r.size(); j++) {
-        c_private_sector_info[i].comm_r[j] = private_sector_info.f[i].comm_r[j];
-      }
-    }
-
-    auto winners_ptr = c_winners.data();
-
-    auto resPtr = generate_post(sectorSize,
-                                c_randomness,
-                                c_private_sector_info,
-                                private_sector_info.f.size(),
-                                winners_ptr,
-                                c_winners.size(),
-                                c_prover_id);
-
-    if (resPtr->status_code != 0) {
-      std::cerr << resPtr->error_msg << "\n";
-      destroy_generate_post_response(resPtr);
-      return ProofsError::UNKNOWN;
-    }
-    std::vector<uint8_t> result;
-    for (size_t i = 0; i < resPtr->flattened_proofs_len; i++) {
-      result.push_back(resPtr->flattened_proofs_ptr[i]);
-    }
-    destroy_generate_post_response(resPtr);
-    return result;
-  }
+  // ******************
+  // VERIFIED FUNCTIONS
+  // ******************
 
   outcome::result<bool> verifyPoSt(const uint64_t sector_size,
                                    const SortedPublicSectorInfo &sector_info,
                                    const common::Blob<32> &randomness,
                                    const uint64_t challenge_count,
-                                   const std::vector<uint8_t> &proof,
-                                   const std::vector<Candidate> &winners,
+                                   const gsl::span<uint8_t> &proof,
+                                   const gsl::span<Candidate> &winners,
                                    const common::Blob<32> &prover_id) {
     std::vector<std::array<uint8_t, CommitmentBytesLen>> sorted_comrs;
     std::vector<uint64_t> sorted_sector_ids;
-    for (auto sector_info_elem : sector_info.f) {
+    for (auto sector_info_elem : sector_info.values) {
       sorted_sector_ids.push_back(sector_info_elem.sector_id);
       sorted_comrs.push_back(sector_info_elem.comm_r);
     }
@@ -213,19 +194,18 @@ namespace fc::proofs {
 
     std::vector<FFICandidate> c_winners = cCandidates(winners);
 
-    VerifyPoStResponse *resPtr =
-        verify_post(sector_size,
-                    c_randomness,
-                    challenge_count,
-                    sorted_sector_ids.data(),
-                    sorted_sector_ids.size(),
-                    flattening.data(),
-                    flattening.size(),
-                    proof.data(),
-                    proof.size(),
-                    c_winners.data(),
-                    c_winners.size(),
-                    c_prover_id);
+    VerifyPoStResponse *resPtr = verify_post(sector_size,
+                                             c_randomness,
+                                             challenge_count,
+                                             sorted_sector_ids.data(),
+                                             sorted_sector_ids.size(),
+                                             flattening.data(),
+                                             flattening.size(),
+                                             proof.data(),
+                                             proof.size(),
+                                             c_winners.data(),
+                                             c_winners.size(),
+                                             c_prover_id);
 
     if (resPtr->status_code != 0) {
       std::cerr << resPtr->error_msg << "\n";
@@ -234,6 +214,134 @@ namespace fc::proofs {
     }
     bool result = resPtr->is_valid;
     destroy_verify_post_response(resPtr);
+    return result;
+  }
+
+  outcome::result<bool> verifySeal(const uint64_t sector_size,
+                                   const Blob<CommitmentBytesLen> &comm_r,
+                                   const Blob<CommitmentBytesLen> &comm_d,
+                                   const common::Blob<32> &prover_id,
+                                   const common::Blob<32> &ticket,
+                                   const common::Blob<32> &seed,
+                                   const uint64_t sector_id,
+                                   const gsl::span<uint8_t> proof) {
+    const uint8_t(*c_prover_id)[32] = &(prover_id._M_elems);
+
+    const uint8_t(*c_ticket)[32] = &(ticket._M_elems);
+
+    const uint8_t(*c_seed)[32] = &(seed._M_elems);
+
+    const uint8_t(*c_comm_r)[CommitmentBytesLen] = &(comm_r._M_elems);
+
+    const uint8_t(*c_comm_d)[CommitmentBytesLen] = &(comm_d._M_elems);
+
+    auto resPtr = verify_seal(sector_size,
+                              c_comm_r,
+                              c_comm_d,
+                              c_prover_id,
+                              c_ticket,
+                              c_seed,
+                              sector_id,
+                              proof.data(),
+                              proof.size());
+
+    if (resPtr->status_code != 0) {
+      std::cerr << resPtr->error_msg;
+      destroy_verify_seal_response(resPtr);
+
+      return ProofsError::UNKNOWN;
+    }
+
+    auto result = resPtr->is_valid;
+    destroy_verify_seal_response(resPtr);
+    return result;
+  }
+
+  // ******************
+  // GENERATED FUNCTIONS
+  // ******************
+
+  outcome::result<std::vector<Candidate>> generateCandidates(
+      const uint64_t sector_size,
+      const common::Blob<32> &prover_id,
+      const common::Blob<32> &randomness,
+      const uint64_t challenge_count,
+      const SortedPrivateSectorInfo &sorted_private_sector_info) {
+    const uint8_t(*c_randomness)[32] = &(randomness._M_elems);
+
+    const uint8_t(*c_prover_id)[32] = &(prover_id._M_elems);
+
+    FFIPrivateReplicaInfo
+        c_sorted_private_sector_info[sorted_private_sector_info.values.size()];
+    for (size_t i = 0; i < sorted_private_sector_info.values.size(); i++) {
+      c_sorted_private_sector_info[i] =
+          cPrivateSectorInfo(sorted_private_sector_info.values[i]);
+    }
+
+    auto resPtr = generate_candidates(sector_size,
+                                      c_randomness,
+                                      challenge_count,
+                                      c_sorted_private_sector_info,
+                                      sorted_private_sector_info.values.size(),
+                                      c_prover_id);
+
+    if (resPtr->status_code != 0) {
+      std::cerr << resPtr->error_msg;
+      destroy_generate_candidates_response(resPtr);
+      return ProofsError::UNKNOWN;
+    }
+
+    auto result = cppCandidates(resPtr->candidates_ptr, resPtr->candidates_len);
+    destroy_generate_candidates_response(resPtr);
+    return result;
+  }
+
+  outcome::result<std::vector<uint8_t>> generatePoSt(
+      const uint64_t sectorSize,
+      const common::Blob<32> &prover_id,
+      const SortedPrivateSectorInfo &private_sector_info,
+      const common::Blob<32> &randomness,
+      const gsl::span<Candidate> &winners) {
+    std::vector<FFICandidate> c_winners = cCandidates(winners);
+
+    const uint8_t(*c_randomness)[32] = &(randomness._M_elems);
+
+    const uint8_t(*c_prover_id)[32] = &(prover_id._M_elems);
+
+    FFIPrivateReplicaInfo
+        c_private_sector_info[private_sector_info.values.size()];
+
+    for (size_t i = 0; i < private_sector_info.values.size(); i++) {
+      c_private_sector_info[i].sector_id =
+          private_sector_info.values[i].sector_id;
+      c_private_sector_info[i].cache_dir_path =
+          private_sector_info.values[i].cache_dir_path.c_str();
+      c_private_sector_info[i].replica_path =
+          private_sector_info.values[i].sealed_sector_path.c_str();
+      for (size_t j = 0; j < private_sector_info.values[i].comm_r.size(); j++) {
+        c_private_sector_info[i].comm_r[j] =
+            private_sector_info.values[i].comm_r[j];
+      }
+    }
+
+    auto resPtr = generate_post(sectorSize,
+                                c_randomness,
+                                c_private_sector_info,
+                                private_sector_info.values.size(),
+                                c_winners.data(),
+                                c_winners.size(),
+                                c_prover_id);
+
+    if (resPtr->status_code != 0) {
+      std::cerr << resPtr->error_msg << "\n";
+      destroy_generate_post_response(resPtr);
+      return ProofsError::UNKNOWN;
+    }
+    std::vector<uint8_t> result;
+    for (size_t i = 0; i < resPtr->flattened_proofs_len; i++) {
+      result.push_back(resPtr->flattened_proofs_ptr[i]);
+    }
+    destroy_generate_post_response(resPtr);
     return result;
   }
 
@@ -256,48 +364,23 @@ namespace fc::proofs {
     return result;
   }
 
-  FFISectorClass cSectorClass(const uint64_t sector_size,
-                              const uint8_t porep_proof_partitions) {
-    FFISectorClass sector_class;
-    sector_class.sector_size = sector_size;
-    sector_class.porep_proof_partitions = porep_proof_partitions;
-    return std::move(sector_class);
-  }
+  outcome::result<Blob<CommitmentBytesLen>> generateDataCommitment(
+      const uint64_t sector_size, const gsl::span<PublicPieceInfo> &pieces) {
+    FFIPublicPieceInfo *c_pieces = cPublicPiecesInfo(pieces);
 
-  RawSealPreCommitOutput cppRawSealPreCommitOutput(
-      const FFISealPreCommitOutput &c_seal_pre_commit_output) {
-    RawSealPreCommitOutput cpp_seal_pre_commit_output;
+    auto res_ptr =
+        generate_data_commitment(sector_size, c_pieces, pieces.size());
 
-    for (size_t i = 0; i < cpp_seal_pre_commit_output.comm_d.size(); i++) {
-      cpp_seal_pre_commit_output.comm_d[i] = c_seal_pre_commit_output.comm_d[i];
-    }
-    for (size_t i = 0; i < cpp_seal_pre_commit_output.comm_r.size(); i++) {
-      cpp_seal_pre_commit_output.comm_r[i] = c_seal_pre_commit_output.comm_r[i];
-    }
-    return cpp_seal_pre_commit_output;
-  }
-
-  FFISealPreCommitOutput cRawSealPreCommitOutput(
-      const RawSealPreCommitOutput &cpp_seal_pre_commit_output) {
-    FFISealPreCommitOutput c_seal_pre_commit_output{};
-
-    for (size_t i = 0; i < cpp_seal_pre_commit_output.comm_d.size(); i++) {
-      c_seal_pre_commit_output.comm_d[i] = cpp_seal_pre_commit_output.comm_d[i];
-    }
-    for (size_t i = 0; i < cpp_seal_pre_commit_output.comm_r.size(); i++) {
-      c_seal_pre_commit_output.comm_r[i] = cpp_seal_pre_commit_output.comm_r[i];
+    if (res_ptr->status_code != 0) {
+      destroy_generate_data_commitment_response(res_ptr);
+      return ProofsError::UNKNOWN;
     }
 
-    return c_seal_pre_commit_output;
-  }
-
-  WriteWithoutAlignmentResult cppWriteWithoutAlignmentResult(
-      const uint64_t total_write_unpadded, const uint8_t *comm_p) {
-    WriteWithoutAlignmentResult result;
-    result.total_write_unpadded = total_write_unpadded;
-    for (size_t i = 0; i < result.comm_p.size(); i++) {
-      result.comm_p[i] = comm_p[i];
+    Blob<32> result;
+    for (size_t i = 0; i < result.size(); i++) {
+      result[i] = res_ptr->comm_d[i];
     }
+    destroy_generate_data_commitment_response(res_ptr);
     return result;
   }
 
@@ -322,37 +405,18 @@ namespace fc::proofs {
     return result;
   }
 
-  WriteWithAlignmentResult cppWriteWithAlignmentResult(
-      const uint64_t left_alignment_unpadded,
-      const uint64_t total_write_unpadded,
-      const uint8_t *comm_p) {
-    WriteWithAlignmentResult result;
-    result.left_alignment_unpadded = left_alignment_unpadded;
-    result.total_write_unpadded = total_write_unpadded;
-    for (size_t i = 0; i < result.comm_p.size(); i++) {
-      result.comm_p[i] = comm_p[i];
-    }
-    return result;
-  }
-
   outcome::result<WriteWithAlignmentResult> writeWithAlignment(
       const std::string &piece_file_path,
       const uint64_t piece_bytes,
       const std::string &staged_sector_file_path,
-      const std::vector<uint64_t> &existing_piece_sizes) {
+      const gsl::span<uint64_t> &existing_piece_sizes) {
     int piece_fd = open(piece_file_path.c_str(), O_RDWR);
     int staged_sector_fd = open(staged_sector_file_path.c_str(), O_RDWR);
-
-    uint64_t c_existing_piece_sizes[existing_piece_sizes.size()];
-
-    for (size_t i = 0; i < existing_piece_sizes.size(); i++) {
-      c_existing_piece_sizes[i] = existing_piece_sizes[i];
-    }
 
     auto resPtr = write_with_alignment(piece_fd,
                                        piece_bytes,
                                        staged_sector_fd,
-                                       c_existing_piece_sizes,
+                                       existing_piece_sizes.data(),
                                        existing_piece_sizes.size());
 
     if (resPtr->status_code != 0) {
@@ -377,7 +441,7 @@ namespace fc::proofs {
       const uint64_t sector_id,
       const common::Blob<32> &prover_id,
       const common::Blob<32> &ticket,
-      const std::vector<PublicPieceInfo> &pieces) {
+      const gsl::span<PublicPieceInfo> &pieces) {
     const uint8_t(*c_prover_id)[32] = &(prover_id._M_elems);
 
     const uint8_t(*c_ticket)[32] = &(ticket._M_elems);
@@ -400,9 +464,9 @@ namespace fc::proofs {
 
       return ProofsError::UNKNOWN;
     }
-
     auto result = cppRawSealPreCommitOutput(resPtr->seal_pre_commit_output);
     destroy_seal_pre_commit_response(resPtr);
+    free(c_pieces);
     return result;
   }
 
@@ -414,7 +478,7 @@ namespace fc::proofs {
       const common::Blob<32> &prover_id,
       const common::Blob<32> &ticket,
       const common::Blob<32> &seed,
-      const std::vector<PublicPieceInfo> &pieces,
+      const gsl::span<PublicPieceInfo> &pieces,
       const RawSealPreCommitOutput &rspco) {
     const uint8_t(*c_prover_id)[32] = &(prover_id._M_elems);
 
@@ -446,46 +510,6 @@ namespace fc::proofs {
       result.push_back(resPtr->proof_ptr[i]);
     }
     destroy_seal_commit_response(resPtr);
-    return result;
-  }
-
-  outcome::result<bool> verifySeal(const uint64_t sector_size,
-                                   const Blob<CommitmentBytesLen> &comm_r,
-                                   const Blob<CommitmentBytesLen> &comm_d,
-                                   const common::Blob<32> &prover_id,
-                                   const common::Blob<32> &ticket,
-                                   const common::Blob<32> &seed,
-                                   const uint64_t sector_id,
-                                   const std::vector<uint8_t> proof) {
-    const uint8_t(*c_prover_id)[32] = &(prover_id._M_elems);
-
-    const uint8_t(*c_ticket)[32] = &(ticket._M_elems);
-
-    const uint8_t(*c_seed)[32] = &(seed._M_elems);
-
-    const uint8_t(*c_comm_r)[CommitmentBytesLen] = &(comm_r._M_elems);
-
-    const uint8_t(*c_comm_d)[CommitmentBytesLen] = &(comm_d._M_elems);
-
-    auto resPtr = verify_seal(sector_size,
-                              c_comm_r,
-                              c_comm_d,
-                              c_prover_id,
-                              c_ticket,
-                              c_seed,
-                              sector_id,
-                              proof.data(),
-                              proof.size());
-
-    if (resPtr->status_code != 0) {
-      std::cerr << resPtr->error_msg;
-      destroy_verify_seal_response(resPtr);
-
-      return ProofsError::UNKNOWN;
-    }
-
-    auto result = resPtr->is_valid;
-    destroy_verify_seal_response(resPtr);
     return result;
   }
 
@@ -561,61 +585,6 @@ namespace fc::proofs {
 
     return outcome::success();
   }
-  outcome::result<Blob<CommitmentBytesLen>> generateDataCommitment(
-      const uint64_t sector_size, const std::vector<PublicPieceInfo> &pieces) {
-    FFIPublicPieceInfo *c_pieces = cPublicPiecesInfo(pieces);
-
-    auto res_ptr =
-        generate_data_commitment(sector_size, c_pieces, pieces.size());
-
-    if (res_ptr->status_code != 0) {
-      destroy_generate_data_commitment_response(res_ptr);
-      return ProofsError::UNKNOWN;
-    }
-
-    Blob<32> result;
-    for (size_t i = 0; i < result.size(); i++) {
-      result[i] = res_ptr->comm_d[i];
-    }
-    destroy_generate_data_commitment_response(res_ptr);
-    return result;
-  }
-
-  outcome::result<SortedPrivateSectorInfo> newSortedPrivateSectorInfo(
-      const std::vector<PrivateSectorInfo> &sector_info) {
-    SortedPrivateSectorInfo sorted_sector_info;
-
-    for (const auto &elem : sector_info) {
-      sorted_sector_info.f.push_back(elem);
-    }
-    std::sort(sorted_sector_info.f.begin(),
-              sorted_sector_info.f.end(),
-              [](const PrivateSectorInfo &lhs, const PrivateSectorInfo &rhs) {
-                return std::memcmp(lhs.comm_r.data(),
-                                   rhs.comm_r.data(),
-                                   lhs.comm_r.size())
-                       < 0;
-              });
-
-    return std::move(sorted_sector_info);
-  }
-  outcome::result<fc::proofs::SortedPublicSectorInfo> newSortedPublicSectorInfo(
-      const std::vector<PublicSectorInfo> &sector_info) {
-    SortedPublicSectorInfo sorted_sector_info;
-
-    for (const auto &elem : sector_info) {
-      sorted_sector_info.f.push_back(elem);
-    }
-    std::sort(sorted_sector_info.f.begin(),
-              sorted_sector_info.f.end(),
-              [](const PublicSectorInfo &lhs, const PublicSectorInfo &rhs) {
-      return std::memcmp(
-                 lhs.comm_r.data(), rhs.comm_r.data(), lhs.comm_r.size())
-             < 0;
-              });
-
-    return std::move(sorted_sector_info);
-  }
 
   outcome::result<fc::common::Blob<32>> finalizeTicket(
       const fc::common::Blob<32> &partial_ticket) {
@@ -634,5 +603,43 @@ namespace fc::proofs {
     }
     destroy_finalize_ticket_response(res_ptr);
     return result;
+  }
+
+  SortedPrivateSectorInfo newSortedPrivateSectorInfo(
+      const gsl::span<PrivateSectorInfo> &sector_info) {
+    SortedPrivateSectorInfo sorted_sector_info;
+
+    for (const auto &elem : sector_info) {
+      sorted_sector_info.values.push_back(elem);
+    }
+    std::sort(sorted_sector_info.values.begin(),
+              sorted_sector_info.values.end(),
+              [](const PrivateSectorInfo &lhs, const PrivateSectorInfo &rhs) {
+                return std::memcmp(lhs.comm_r.data(),
+                                   rhs.comm_r.data(),
+                                   lhs.comm_r.size())
+                       < 0;
+              });
+
+    return sorted_sector_info;
+  }
+
+  fc::proofs::SortedPublicSectorInfo newSortedPublicSectorInfo(
+      const gsl::span<PublicSectorInfo> &sector_info) {
+    SortedPublicSectorInfo sorted_sector_info;
+
+    for (const auto &elem : sector_info) {
+      sorted_sector_info.values.push_back(elem);
+    }
+    std::sort(sorted_sector_info.values.begin(),
+              sorted_sector_info.values.end(),
+              [](const PublicSectorInfo &lhs, const PublicSectorInfo &rhs) {
+                return std::memcmp(lhs.comm_r.data(),
+                                   rhs.comm_r.data(),
+                                   lhs.comm_r.size())
+                       < 0;
+              });
+
+    return sorted_sector_info;
   }
 }  // namespace fc::proofs

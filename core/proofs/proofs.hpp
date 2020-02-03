@@ -69,7 +69,7 @@ namespace fc::proofs {
 
   class SortedPublicSectorInfo {
    public:
-    std::vector<PublicSectorInfo> f;
+    std::vector<PublicSectorInfo> values;
   };
 
   class PrivateSectorInfo {
@@ -82,7 +82,7 @@ namespace fc::proofs {
 
   class SortedPrivateSectorInfo {
    public:
-    std::vector<PrivateSectorInfo> f;
+    std::vector<PrivateSectorInfo> values;
   };
 
   class Candidate {
@@ -106,11 +106,11 @@ namespace fc::proofs {
     fc::common::Blob<CommitmentBytesLen> comm_p;
   };
 
-  outcome::result<fc::proofs::SortedPrivateSectorInfo>
-  newSortedPrivateSectorInfo(const std::vector<PrivateSectorInfo> &sector_info);
+  fc::proofs::SortedPrivateSectorInfo newSortedPrivateSectorInfo(
+      const gsl::span<PrivateSectorInfo> &sector_info);
 
-  outcome::result<fc::proofs::SortedPublicSectorInfo> newSortedPublicSectorInfo(
-      const std::vector<PublicSectorInfo> &sector_info);
+  fc::proofs::SortedPublicSectorInfo newSortedPublicSectorInfo(
+      const gsl::span<PublicSectorInfo> &sector_info);
 
   outcome::result<fc::proofs::WriteWithoutAlignmentResult>
   writeWithoutAlignment(const std::string &piece_file_path,
@@ -121,7 +121,7 @@ namespace fc::proofs {
       const std::string &piece_file_path,
       const uint64_t piece_bytes,
       const std::string &staged_sector_file_path,
-      const std::vector<uint64_t> &existing_piece_sizes);
+      const gsl::span<uint64_t> &existing_piece_sizes);
 
   outcome::result<RawSealPreCommitOutput> sealPreCommit(
       const uint64_t sector_size,
@@ -132,7 +132,7 @@ namespace fc::proofs {
       const uint64_t sector_id,
       const fc::common::Blob<32> &prover_id,
       const fc::common::Blob<32> &ticket,
-      const std::vector<PublicPieceInfo> &pieces);
+      const gsl::span<PublicPieceInfo> &pieces);
 
   outcome::result<std::vector<uint8_t>> sealCommit(
       const uint64_t sector_size,
@@ -142,7 +142,7 @@ namespace fc::proofs {
       const fc::common::Blob<32> &prover_id,
       const fc::common::Blob<32> &ticket,
       const fc::common::Blob<32> &seed,
-      const std::vector<PublicPieceInfo> &pieces,
+      const gsl::span<PublicPieceInfo> &pieces,
       const RawSealPreCommitOutput &rspco);
 
   outcome::result<void> unseal(
@@ -173,7 +173,7 @@ namespace fc::proofs {
       const fc::common::Blob<32> &partial_ticket);
 
   outcome::result<fc::common::Blob<CommitmentBytesLen>> generateDataCommitment(
-      const uint64_t sector_size, const std::vector<PublicPieceInfo> &pieces);
+      const uint64_t sector_size, const gsl::span<PublicPieceInfo> &pieces);
 
   outcome::result<fc::common::Blob<32>> generatePieceCommitmentFromFile(
       const std::string &piece_file, const uint64_t piece_size);
@@ -190,7 +190,7 @@ namespace fc::proofs {
       const fc::common::Blob<32> &prover_id,
       const SortedPrivateSectorInfo &private_sector_info,
       const fc::common::Blob<32> &randomness,
-      const std::vector<Candidate> &winners);
+      const gsl::span<Candidate> &winners);
 
   outcome::result<bool> verifySeal(
       const uint64_t sector_size,
@@ -200,14 +200,14 @@ namespace fc::proofs {
       const fc::common::Blob<32> &ticket,
       const fc::common::Blob<32> &seed,
       const uint64_t sector_id,
-      const std::vector<uint8_t> proof);
+      const gsl::span<uint8_t> proof);
 
   outcome::result<bool> verifyPoSt(const uint64_t sector_size,
                                    const SortedPublicSectorInfo &sector_info,
                                    const fc::common::Blob<32> &randomness,
                                    const uint64_t challenge_count,
-                                   const std::vector<uint8_t> &proof,
-                                   const std::vector<Candidate> &winners,
+                                   const gsl::span<uint8_t> &proof,
+                                   const gsl::span<Candidate> &winners,
                                    const fc::common::Blob<32> &prover_id);
 
 }  // namespace fc::proofs
