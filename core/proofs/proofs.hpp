@@ -9,6 +9,7 @@
 #include <vector>
 #include "common/blob.hpp"
 #include "common/outcome.hpp"
+#include "crypto/randomness/randomness_types.hpp"
 
 using fc::common::Blob;
 
@@ -45,7 +46,7 @@ namespace fc::proofs {
     std::vector<PublicSectorInfo> values;
   };
 
-  class PrivateSectorInfo {
+  class PrivateReplicaInfo {
    public:
     uint64_t sector_id;
     fc::common::Blob<kCommitmentBytesLen> comm_r;
@@ -53,10 +54,10 @@ namespace fc::proofs {
     std::string sealed_sector_path;
   };
 
-  // SortedPrivateSectorInfo is a sorted vector of PrivateSectorInfo
-  class SortedPrivateSectorInfo {
+  // SortedPrivateReplicaInfo is a sorted vector of PrivateReplicaInfo
+  class SortedPrivateReplicaInfo {
    public:
-    std::vector<PrivateSectorInfo> values;
+    std::vector<PrivateReplicaInfo> values;
   };
 
   class Candidate {
@@ -80,8 +81,8 @@ namespace fc::proofs {
     fc::common::Blob<kCommitmentBytesLen> comm_p;
   };
 
-  fc::proofs::SortedPrivateSectorInfo newSortedPrivateSectorInfo(
-      gsl::span<const PrivateSectorInfo> sector_info);
+  fc::proofs::SortedPrivateReplicaInfo newSortedPrivateReplicaInfo(
+      gsl::span<const PrivateReplicaInfo> replica_info);
 
   fc::proofs::SortedPublicSectorInfo newSortedPublicSectorInfo(
       gsl::span<const PublicSectorInfo> sector_info);
@@ -155,15 +156,15 @@ namespace fc::proofs {
   outcome::result<std::vector<Candidate>> generateCandidates(
       const uint64_t sector_size,
       const fc::common::Blob<32> &prover_id,
-      const fc::common::Blob<32> &randomness,
+      const fc::crypto::randomness::Randomness &randomness,
       const uint64_t challenge_count,
-      const SortedPrivateSectorInfo &sorted_private_sector_info);
+      const SortedPrivateReplicaInfo &sorted_private_replica_info);
 
   outcome::result<std::vector<uint8_t>> generatePoSt(
       const uint64_t sectorSize,
       const fc::common::Blob<32> &prover_id,
-      const SortedPrivateSectorInfo &private_sector_info,
-      const fc::common::Blob<32> &randomness,
+      const SortedPrivateReplicaInfo &private_replica_info,
+      const fc::crypto::randomness::Randomness &randomness,
       gsl::span<const Candidate> winners);
 
   outcome::result<bool> verifySeal(
@@ -176,13 +177,14 @@ namespace fc::proofs {
       const uint64_t sector_id,
       gsl::span<const uint8_t> proof);
 
-  outcome::result<bool> verifyPoSt(const uint64_t sector_size,
-                                   const SortedPublicSectorInfo &sector_info,
-                                   const fc::common::Blob<32> &randomness,
-                                   const uint64_t challenge_count,
-                                   gsl::span<const uint8_t> proof,
-                                   gsl::span<const Candidate> winners,
-                                   const fc::common::Blob<32> &prover_id);
+  outcome::result<bool> verifyPoSt(
+      const uint64_t sector_size,
+      const SortedPublicSectorInfo &public_sector_info,
+      const fc::crypto::randomness::Randomness &randomness,
+      const uint64_t challenge_count,
+      gsl::span<const uint8_t> proof,
+      gsl::span<const Candidate> winners,
+      const fc::common::Blob<32> &prover_id);
 
 }  // namespace fc::proofs
 

@@ -184,6 +184,7 @@ namespace fc::proofs {
 
     std::ifstream ifs(path, std::ios::binary);
 
+    // TODO (artyom-yurin): NEED TO PROCESS HUGE FILES
     if (!ifs.is_open()) return ProofParamProviderError::FILE_DOES_NOT_OPEN;
 
     // read file

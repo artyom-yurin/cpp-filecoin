@@ -35,7 +35,7 @@ TEST_F(ProofsTest, ValidPoSt) {
   uint64_t challenge_count = 2;
   uint8_t porep_proof_partitions = 10;
   fc::common::Blob<32> prover_id{{6, 7, 8}};
-  fc::common::Blob<32> randomness{{9, 9, 9}};
+  fc::crypto::randomness::Randomness randomness{{9, 9, 9}};
   fc::common::Blob<32> ticket{{5, 4, 2}};
   uint64_t sector_size = 1024;
   uint64_t sector_id = 42;
@@ -141,15 +141,15 @@ TEST_F(ProofsTest, ValidPoSt) {
 
   ASSERT_EQ(comm_d, output.comm_d);
 
-  fc::proofs::PrivateSectorInfo private_sector_info;
-  private_sector_info.sector_id = sector_id;
-  private_sector_info.comm_r = output.comm_r;
-  private_sector_info.cache_dir_path = sector_cache_dir_path;
-  private_sector_info.sealed_sector_path = sealed_sector_file;
-  std::vector<fc::proofs::PrivateSectorInfo> private_sectors_info = {
-      private_sector_info};
+  fc::proofs::PrivateReplicaInfo private_replica_info;
+  private_replica_info.sector_id = sector_id;
+  private_replica_info.comm_r = output.comm_r;
+  private_replica_info.cache_dir_path = sector_cache_dir_path;
+  private_replica_info.sealed_sector_path = sealed_sector_file;
+  std::vector<fc::proofs::PrivateReplicaInfo> private_replicas_info = {
+      private_replica_info};
   auto private_info =
-      fc::proofs::newSortedPrivateSectorInfo(private_sectors_info);
+      fc::proofs::newSortedPrivateReplicaInfo(private_replicas_info);
 
   fc::proofs::PublicSectorInfo public_sector_info;
   public_sector_info.sector_id = sector_id;
@@ -179,7 +179,7 @@ TEST_F(ProofsTest, ValidPoSt) {
   ASSERT_TRUE(res);
 }
 
-TEST_F(ProofsTest, DISABLED_ValidSealAndUnseal) {
+TEST_F(ProofsTest, DISABLE_ValidSealAndUnseal) {
   uint8_t porep_proof_partitions = 10;
   fc::common::Blob<32> prover_id{{6, 7, 8}};
   fc::common::Blob<32> randomness{{9, 9, 9}};
