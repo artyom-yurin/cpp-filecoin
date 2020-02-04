@@ -49,7 +49,7 @@ namespace fc::proofs {
       const FFISealPreCommitOutput &c_seal_pre_commit_output) {
     RawSealPreCommitOutput cpp_seal_pre_commit_output;
 
-    for (size_t i = 0; i < CommitmentBytesLen; i++) {
+    for (size_t i = 0; i < kCommitmentBytesLen; i++) {
       cpp_seal_pre_commit_output.comm_d[i] = c_seal_pre_commit_output.comm_d[i];
       cpp_seal_pre_commit_output.comm_r[i] = c_seal_pre_commit_output.comm_r[i];
     }
@@ -62,7 +62,7 @@ namespace fc::proofs {
     WriteWithoutAlignmentResult result;
 
     result.total_write_unpadded = total_write_unpadded;
-    for (size_t i = 0; i < CommitmentBytesLen; i++) {
+    for (size_t i = 0; i < kCommitmentBytesLen; i++) {
       result.comm_p[i] = comm_p[i];
     }
 
@@ -77,7 +77,7 @@ namespace fc::proofs {
 
     result.left_alignment_unpadded = left_alignment_unpadded;
     result.total_write_unpadded = total_write_unpadded;
-    for (size_t i = 0; i < CommitmentBytesLen; i++) {
+    for (size_t i = 0; i < kCommitmentBytesLen; i++) {
       result.comm_p[i] = comm_p[i];
     }
 
@@ -124,7 +124,7 @@ namespace fc::proofs {
   }
 
   std::vector<FFICandidate> cCandidates(
-      const gsl::span<Candidate> &cpp_candidates) {
+      gsl::span<const Candidate> cpp_candidates) {
     std::vector<FFICandidate> c_candidates;
     for (const auto cpp_candidate : cpp_candidates) {
       c_candidates.push_back(cCandidate(cpp_candidate));
@@ -151,12 +151,12 @@ namespace fc::proofs {
   }
 
   FFIPublicPieceInfo *cPublicPiecesInfo(
-      const gsl::span<PublicPieceInfo> &cpp_public_pieces_info) {
+      gsl::span<const PublicPieceInfo> cpp_public_pieces_info) {
     FFIPublicPieceInfo *c_public_pieces_info = (FFIPublicPieceInfo *)malloc(
         cpp_public_pieces_info.size() * sizeof(FFIPublicPieceInfo));
     for (long i = 0; i < cpp_public_pieces_info.size(); i++) {
       c_public_pieces_info[i].num_bytes = cpp_public_pieces_info[i].size;
-      for (size_t j = 0; j < CommitmentBytesLen; j++) {
+      for (size_t j = 0; j < kCommitmentBytesLen; j++) {
         c_public_pieces_info[i].comm_p[j] = cpp_public_pieces_info[i].comm_p[j];
       }
     }
@@ -171,10 +171,10 @@ namespace fc::proofs {
                                    const SortedPublicSectorInfo &sector_info,
                                    const common::Blob<32> &randomness,
                                    const uint64_t challenge_count,
-                                   const gsl::span<uint8_t> &proof,
-                                   const gsl::span<Candidate> &winners,
+                                   gsl::span<const uint8_t> proof,
+                                   gsl::span<const Candidate> winners,
                                    const common::Blob<32> &prover_id) {
-    std::vector<std::array<uint8_t, CommitmentBytesLen>> sorted_comrs;
+    std::vector<std::array<uint8_t, kCommitmentBytesLen>> sorted_comrs;
     std::vector<uint64_t> sorted_sector_ids;
     for (auto sector_info_elem : sector_info.values) {
       sorted_sector_ids.push_back(sector_info_elem.sector_id);
@@ -183,7 +183,7 @@ namespace fc::proofs {
 
     std::vector<uint8_t> flattening;
     for (size_t i = 0; i < sorted_comrs.size(); i++) {
-      for (size_t j = 0; j < CommitmentBytesLen; j++) {
+      for (size_t j = 0; j < kCommitmentBytesLen; j++) {
         flattening.push_back(sorted_comrs[i][j]);
       }
     }
@@ -218,22 +218,22 @@ namespace fc::proofs {
   }
 
   outcome::result<bool> verifySeal(const uint64_t sector_size,
-                                   const Blob<CommitmentBytesLen> &comm_r,
-                                   const Blob<CommitmentBytesLen> &comm_d,
+                                   const Blob<kCommitmentBytesLen> &comm_r,
+                                   const Blob<kCommitmentBytesLen> &comm_d,
                                    const common::Blob<32> &prover_id,
                                    const common::Blob<32> &ticket,
                                    const common::Blob<32> &seed,
                                    const uint64_t sector_id,
-                                   const gsl::span<uint8_t> proof) {
+                                   gsl::span<const uint8_t> proof) {
     const uint8_t(*c_prover_id)[32] = &(prover_id._M_elems);
 
     const uint8_t(*c_ticket)[32] = &(ticket._M_elems);
 
     const uint8_t(*c_seed)[32] = &(seed._M_elems);
 
-    const uint8_t(*c_comm_r)[CommitmentBytesLen] = &(comm_r._M_elems);
+    const uint8_t(*c_comm_r)[kCommitmentBytesLen] = &(comm_r._M_elems);
 
-    const uint8_t(*c_comm_d)[CommitmentBytesLen] = &(comm_d._M_elems);
+    const uint8_t(*c_comm_d)[kCommitmentBytesLen] = &(comm_d._M_elems);
 
     auto resPtr = verify_seal(sector_size,
                               c_comm_r,
@@ -301,7 +301,7 @@ namespace fc::proofs {
       const common::Blob<32> &prover_id,
       const SortedPrivateSectorInfo &private_sector_info,
       const common::Blob<32> &randomness,
-      const gsl::span<Candidate> &winners) {
+      gsl::span<const Candidate> winners) {
     std::vector<FFICandidate> c_winners = cCandidates(winners);
 
     const uint8_t(*c_randomness)[32] = &(randomness._M_elems);
@@ -364,8 +364,8 @@ namespace fc::proofs {
     return result;
   }
 
-  outcome::result<Blob<CommitmentBytesLen>> generateDataCommitment(
-      const uint64_t sector_size, const gsl::span<PublicPieceInfo> &pieces) {
+  outcome::result<Blob<kCommitmentBytesLen>> generateDataCommitment(
+      const uint64_t sector_size, gsl::span<const PublicPieceInfo> pieces) {
     FFIPublicPieceInfo *c_pieces = cPublicPiecesInfo(pieces);
 
     auto res_ptr =
@@ -409,7 +409,7 @@ namespace fc::proofs {
       const std::string &piece_file_path,
       const uint64_t piece_bytes,
       const std::string &staged_sector_file_path,
-      const gsl::span<uint64_t> &existing_piece_sizes) {
+      gsl::span<const uint64_t> existing_piece_sizes) {
     int piece_fd = open(piece_file_path.c_str(), O_RDWR);
     int staged_sector_fd = open(staged_sector_file_path.c_str(), O_RDWR);
 
@@ -441,7 +441,7 @@ namespace fc::proofs {
       const uint64_t sector_id,
       const common::Blob<32> &prover_id,
       const common::Blob<32> &ticket,
-      const gsl::span<PublicPieceInfo> &pieces) {
+      gsl::span<const PublicPieceInfo> pieces) {
     const uint8_t(*c_prover_id)[32] = &(prover_id._M_elems);
 
     const uint8_t(*c_ticket)[32] = &(ticket._M_elems);
@@ -478,7 +478,7 @@ namespace fc::proofs {
       const common::Blob<32> &prover_id,
       const common::Blob<32> &ticket,
       const common::Blob<32> &seed,
-      const gsl::span<PublicPieceInfo> &pieces,
+      gsl::span<const PublicPieceInfo> pieces,
       const RawSealPreCommitOutput &rspco) {
     const uint8_t(*c_prover_id)[32] = &(prover_id._M_elems);
 
@@ -521,12 +521,12 @@ namespace fc::proofs {
                                const uint64_t sector_id,
                                const common::Blob<32> &prover_id,
                                const common::Blob<32> &ticket,
-                               const Blob<CommitmentBytesLen> &comm_d) {
+                               const Blob<kCommitmentBytesLen> &comm_d) {
     const uint8_t(*c_prover_id)[32] = &(prover_id._M_elems);
 
     const uint8_t(*c_ticket)[32] = &(ticket._M_elems);
 
-    const uint8_t(*c_comm_d)[CommitmentBytesLen] = &(comm_d._M_elems);
+    const uint8_t(*c_comm_d)[kCommitmentBytesLen] = &(comm_d._M_elems);
 
     auto resPtr = unseal(cSectorClass(sector_size, porep_proof_partitions),
                          cache_dir_path.c_str(),
@@ -555,14 +555,14 @@ namespace fc::proofs {
                                     const uint64_t sector_id,
                                     const common::Blob<32> &prover_id,
                                     const common::Blob<32> &ticket,
-                                    const Blob<CommitmentBytesLen> &comm_d,
+                                    const Blob<kCommitmentBytesLen> &comm_d,
                                     const uint64_t offset,
                                     const uint64_t length) {
     const uint8_t(*c_prover_id)[32] = &(prover_id._M_elems);
 
     const uint8_t(*c_ticket)[32] = &(ticket._M_elems);
 
-    const uint8_t(*c_comm_d)[CommitmentBytesLen] = &(comm_d._M_elems);
+    const uint8_t(*c_comm_d)[kCommitmentBytesLen] = &(comm_d._M_elems);
 
     auto resPtr =
         unseal_range(cSectorClass(sector_size, porep_proof_partitions),
@@ -606,7 +606,7 @@ namespace fc::proofs {
   }
 
   SortedPrivateSectorInfo newSortedPrivateSectorInfo(
-      const gsl::span<PrivateSectorInfo> &sector_info) {
+      gsl::span<const PrivateSectorInfo> sector_info) {
     SortedPrivateSectorInfo sorted_sector_info;
 
     for (const auto &elem : sector_info) {
@@ -625,7 +625,7 @@ namespace fc::proofs {
   }
 
   fc::proofs::SortedPublicSectorInfo newSortedPublicSectorInfo(
-      const gsl::span<PublicSectorInfo> &sector_info) {
+      gsl::span<const PublicSectorInfo> sector_info) {
     SortedPublicSectorInfo sorted_sector_info;
 
     for (const auto &elem : sector_info) {

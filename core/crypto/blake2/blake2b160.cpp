@@ -20,8 +20,7 @@ namespace fc::crypto::blake2b {
     return res;
   }
 
-  Blake2b256Hash blake2b_256(
-      gsl::span<const uint8_t> to_hash) {
+  Blake2b256Hash blake2b_256(gsl::span<const uint8_t> to_hash) {
     Blake2b256Hash res{};
     ::blake2b(res.data(),
               BLAKE2B256_HASH_LENGTH,
@@ -32,18 +31,16 @@ namespace fc::crypto::blake2b {
     return res;
   }
 
-    fc::outcome::result<Blake2b512Hash> blake2b_512(
-            gsl::span<const uint8_t> to_hash) {
-        Blake2b512Hash res{};
-        if (::blake2b(res.data(),
-                      BLAKE2B512_HASH_LENGTH,
-                      nullptr,
-                      0,
-                      to_hash.data(),
-                      to_hash.size())
-            != 0)
-            return Blake2bError::CANNOT_INIT;
-        return res;
-    }
+  Blake2b512Hash blake2b_512(
+      gsl::span<const uint8_t> to_hash) {
+    Blake2b512Hash res{};
+    ::blake2b(res.data(),
+              BLAKE2B512_HASH_LENGTH,
+              nullptr,
+              0,
+              to_hash.data(),
+              to_hash.size());
+    return res;
+  }
 
 }  // namespace fc::crypto::blake2b

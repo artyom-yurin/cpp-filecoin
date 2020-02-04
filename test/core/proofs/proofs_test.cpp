@@ -37,31 +37,9 @@ TEST_F(ProofsTest, ValidPoSt) {
   fc::common::Blob<32> prover_id{{6, 7, 8}};
   fc::common::Blob<32> randomness{{9, 9, 9}};
   fc::common::Blob<32> ticket{{5, 4, 2}};
-  fc::common::Blob<32> seed{{7, 4, 2}};
   uint64_t sector_size = 1024;
   uint64_t sector_id = 42;
-  EXPECT_OUTCOME_TRUE_1(
-      fc::proofs::ProofParamProvider::getParams(params, sector_size));
 
-  Path metadata_dir = boost::filesystem::unique_path(
-                          fs::canonical(base_path).append("%%%%%-metadata"))
-                          .string();
-  boost::filesystem::create_directory(metadata_dir);
-  Path sealed_sectors_dir =
-      boost::filesystem::unique_path(
-          fs::canonical(base_path).append("%%%%%-sealed-sectors"))
-          .string();
-  boost::filesystem::create_directory(sealed_sectors_dir);
-  Path staged_sectors_dir =
-      boost::filesystem::unique_path(
-          fs::canonical(base_path).append("%%%%%-staged-sectors"))
-          .string();
-  boost::filesystem::create_directory(staged_sectors_dir);
-  Path sector_cache_root_dir =
-      boost::filesystem::unique_path(
-          fs::canonical(base_path).append("%%%%%-sector-cache-root-dir"))
-          .string();
-  boost::filesystem::create_directory(sector_cache_root_dir);
   Path sector_cache_dir_path =
       boost::filesystem::unique_path(
           fs::canonical(base_path).append("%%%%%-sector-cache-dir"))
@@ -79,30 +57,6 @@ TEST_F(ProofsTest, ValidPoSt) {
           fs::canonical(base_path).append("%%%%%-sealed-sector-file"))
           .string();
   boost::filesystem::ofstream(sealed_sector_file).close();
-
-  Path unseal_output_file_a =
-      boost::filesystem::unique_path(
-          fs::canonical(base_path).append("%%%%%-unseal-output-file-a"))
-          .string();
-  boost::filesystem::ofstream(unseal_output_file_a).close();
-
-  Path unseal_output_file_b =
-      boost::filesystem::unique_path(
-          fs::canonical(base_path).append("%%%%%-unseal-output-file-b"))
-          .string();
-  boost::filesystem::ofstream(unseal_output_file_b).close();
-
-  Path unseal_output_file_c =
-      boost::filesystem::unique_path(
-          fs::canonical(base_path).append("%%%%%-unseal-output-file-c"))
-          .string();
-  boost::filesystem::ofstream(unseal_output_file_c).close();
-
-  Path unseal_output_file_d =
-      boost::filesystem::unique_path(
-          fs::canonical(base_path).append("%%%%%-unseal-output-file-d"))
-          .string();
-  boost::filesystem::ofstream(unseal_output_file_d).close();
 
   fc::common::Blob<1016> some_bytes;
   std::random_device rd;
@@ -187,109 +141,6 @@ TEST_F(ProofsTest, ValidPoSt) {
 
   ASSERT_EQ(comm_d, output.comm_d);
 
-  //  // commit the sector
-  //  EXPECT_OUTCOME_TRUE(proof,
-  //                      fc::proofs::sealCommit(sector_size,
-  //                                             porep_proof_partitions,
-  //                                             sector_cache_dir_path,
-  //                                             sector_id,
-  //                                             prover_id,
-  //                                             ticket,
-  //                                             seed,
-  //                                             public_pieces,
-  //                                             output));
-  //
-  //  EXPECT_OUTCOME_TRUE(isValid,
-  //                      fc::proofs::verifySeal(sector_size,
-  //                                             output.comm_r,
-  //                                             output.comm_d,
-  //                                             prover_id,
-  //                                             ticket,
-  //                                             seed,
-  //                                             sector_id,
-  //                                             proof));
-  //  ASSERT_TRUE(isValid);
-  //
-  //  EXPECT_OUTCOME_TRUE_1(fc::proofs::unseal(sector_size,
-  //                                           porep_proof_partitions,
-  //                                           sector_cache_dir_path,
-  //                                           sealed_sector_file,
-  //                                           unseal_output_file_a,
-  //                                           sector_id,
-  //                                           prover_id,
-  //                                           ticket,
-  //                                           output.comm_d));
-  //
-  //  // read file
-  //  std::vector<uint8_t> file_a_bytes = {};
-  //
-  //  std::ifstream file_a(unseal_output_file_a, std::ios::binary);
-  //
-  //  uint8_t ch = file_a.get();
-  //  while (!file_a.eof()) {
-  //    file_a_bytes.push_back(ch);
-  //    ch = file_a.get();
-  //  }
-  //
-  //  file_a.close();
-  //
-  //  ASSERT_EQ(gsl::span<uint8_t>(file_a_bytes.data(), 127),
-  //            gsl::span<uint8_t>(some_bytes.data(), 127));
-  //  ASSERT_EQ(gsl::span<uint8_t>(file_a_bytes.data() + 508, 508),
-  //            gsl::span<uint8_t>(some_bytes.data(), 508));
-  //
-  //  EXPECT_OUTCOME_TRUE_1(fc::proofs::unsealRange(sector_size,
-  //                                                porep_proof_partitions,
-  //                                                sector_cache_dir_path,
-  //                                                sealed_sector_file,
-  //                                                unseal_output_file_b,
-  //                                                sector_id,
-  //                                                prover_id,
-  //                                                ticket,
-  //                                                output.comm_d,
-  //                                                0,
-  //                                                127));
-  //
-  //  std::vector<uint8_t> file_b_bytes = {};
-  //
-  //  std::ifstream file_b(unseal_output_file_b, std::ios::binary);
-  //
-  //  ch = file_b.get();
-  //  while (!file_b.eof()) {
-  //    file_b_bytes.push_back(ch);
-  //    ch = file_b.get();
-  //  }
-  //
-  //  ASSERT_EQ(file_b_bytes.size(), 127);
-  //  ASSERT_EQ(gsl::span<uint8_t>(file_b_bytes.data(), 127),
-  //            gsl::span<uint8_t>(some_bytes.data(), 127));
-  //
-  //  EXPECT_OUTCOME_TRUE_1(fc::proofs::unsealRange(sector_size,
-  //                                                porep_proof_partitions,
-  //                                                sector_cache_dir_path,
-  //                                                sealed_sector_file,
-  //                                                unseal_output_file_c,
-  //                                                sector_id,
-  //                                                prover_id,
-  //                                                ticket,
-  //                                                output.comm_d,
-  //                                                508,
-  //                                                508));
-  //
-  //  std::vector<uint8_t> file_c_bytes = {};
-  //
-  //  std::ifstream file_c(unseal_output_file_c, std::ios::binary);
-  //
-  //  ch = file_c.get();
-  //  while (!file_c.eof()) {
-  //    file_c_bytes.push_back(ch);
-  //    ch = file_c.get();
-  //  }
-  //
-  //  ASSERT_EQ(file_c_bytes.size(), 508);
-  //  ASSERT_EQ(gsl::span<uint8_t>(file_c_bytes.data(), 508),
-  //            gsl::span<uint8_t>(some_bytes.data(), 508));
-
   fc::proofs::PrivateSectorInfo private_sector_info;
   private_sector_info.sector_id = sector_id;
   private_sector_info.comm_r = output.comm_r;
@@ -326,4 +177,238 @@ TEST_F(ProofsTest, ValidPoSt) {
                                              candidates,
                                              prover_id));
   ASSERT_TRUE(res);
+}
+
+TEST_F(ProofsTest, DISABLED_ValidSealAndUnseal) {
+  uint8_t porep_proof_partitions = 10;
+  fc::common::Blob<32> prover_id{{6, 7, 8}};
+  fc::common::Blob<32> randomness{{9, 9, 9}};
+  fc::common::Blob<32> ticket{{5, 4, 2}};
+  fc::common::Blob<32> seed{{7, 4, 2}};
+  uint64_t sector_size = 1024;
+  uint64_t sector_id = 42;
+  EXPECT_OUTCOME_TRUE_1(
+      fc::proofs::ProofParamProvider::getParams(params, sector_size));
+
+  Path sector_cache_dir_path =
+      boost::filesystem::unique_path(
+          fs::canonical(base_path).append("%%%%%-sector-cache-dir"))
+          .string();
+  boost::filesystem::create_directory(sector_cache_dir_path);
+
+  Path staged_sector_file =
+      boost::filesystem::unique_path(
+          fs::canonical(base_path).append("%%%%%-staged-sector-file"))
+          .string();
+  boost::filesystem::ofstream(staged_sector_file).close();
+
+  Path sealed_sector_file =
+      boost::filesystem::unique_path(
+          fs::canonical(base_path).append("%%%%%-sealed-sector-file"))
+          .string();
+  boost::filesystem::ofstream(sealed_sector_file).close();
+
+  Path unseal_output_file_a =
+      boost::filesystem::unique_path(
+          fs::canonical(base_path).append("%%%%%-unseal-output-file-a"))
+          .string();
+  boost::filesystem::ofstream(unseal_output_file_a).close();
+
+  Path unseal_output_file_b =
+      boost::filesystem::unique_path(
+          fs::canonical(base_path).append("%%%%%-unseal-output-file-b"))
+          .string();
+  boost::filesystem::ofstream(unseal_output_file_b).close();
+
+  Path unseal_output_file_c =
+      boost::filesystem::unique_path(
+          fs::canonical(base_path).append("%%%%%-unseal-output-file-c"))
+          .string();
+  boost::filesystem::ofstream(unseal_output_file_c).close();
+
+  fc::common::Blob<1016> some_bytes;
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<uint8_t> dis(0, 255);
+  for (size_t i = 0; i < some_bytes.size(); i++) {
+    some_bytes[i] = dis(gen);
+  }
+
+  auto path_model = fs::canonical(base_path).append("%%%%%");
+  Path piece_file_a_path = boost::filesystem::unique_path(path_model).string();
+  boost::filesystem::ofstream piece_file_a(piece_file_a_path);
+
+  int piece_commitment_a_size = 127;
+  for (int i = 0; i < piece_commitment_a_size; i++) {
+    piece_file_a << some_bytes[i];
+  }
+  piece_file_a.close();
+
+  Path piece_file_b_path = boost::filesystem::unique_path(path_model).string();
+  boost::filesystem::ofstream piece_file_b(piece_file_b_path);
+
+  int piece_commitment_b_size = 508;
+  for (int i = 0; i < piece_commitment_b_size; i++) {
+    piece_file_b << some_bytes[i];
+  }
+  piece_file_b.close();
+
+  std::vector<fc::proofs::PublicPieceInfo> public_pieces;
+
+  fc::proofs::PublicPieceInfo pA;
+  pA.size = piece_commitment_a_size;
+  EXPECT_OUTCOME_TRUE(piece_commitment_a,
+                      fc::proofs::generatePieceCommitmentFromFile(
+                          piece_file_a_path, piece_commitment_a_size));
+  pA.comm_p = piece_commitment_a;
+
+  EXPECT_OUTCOME_TRUE(
+      resA,
+      fc::proofs::writeWithoutAlignment(
+          piece_file_a_path, piece_commitment_a_size, staged_sector_file));
+  ASSERT_EQ(resA.total_write_unpadded, piece_commitment_a_size);
+  ASSERT_EQ(resA.comm_p, pA.comm_p);
+
+  std::vector<uint64_t> commitment = {127};
+  EXPECT_OUTCOME_TRUE(
+      resB,
+      fc::proofs::writeWithAlignment(piece_file_b_path,
+                                     piece_commitment_b_size,
+                                     staged_sector_file,
+                                     gsl::span<uint64_t>(commitment)));
+  ASSERT_EQ(resB.left_alignment_unpadded,
+            piece_commitment_b_size - piece_commitment_a_size);
+
+  fc::proofs::PublicPieceInfo pB;
+  pB.size = piece_commitment_b_size;
+  EXPECT_OUTCOME_TRUE(piece_commitment_b,
+                      fc::proofs::generatePieceCommitmentFromFile(
+                          piece_file_b_path, piece_commitment_b_size));
+  pB.comm_p = piece_commitment_b;
+  ASSERT_EQ(resB.left_alignment_unpadded, 381);
+  ASSERT_EQ(resB.total_write_unpadded, 889);
+  ASSERT_EQ(resB.comm_p, pB.comm_p);
+
+  public_pieces.push_back(pA);
+  public_pieces.push_back(pB);
+
+  EXPECT_OUTCOME_TRUE(
+      comm_d, fc::proofs::generateDataCommitment(sector_size, public_pieces));
+
+  // pre-commit the sector
+  EXPECT_OUTCOME_TRUE(output,
+                      fc::proofs::sealPreCommit(sector_size,
+                                                porep_proof_partitions,
+                                                sector_cache_dir_path,
+                                                staged_sector_file,
+                                                sealed_sector_file,
+                                                sector_id,
+                                                prover_id,
+                                                ticket,
+                                                public_pieces));
+
+  ASSERT_EQ(comm_d, output.comm_d);
+
+  // commit the sector
+  EXPECT_OUTCOME_TRUE(proof,
+                      fc::proofs::sealCommit(sector_size,
+                                             porep_proof_partitions,
+                                             sector_cache_dir_path,
+                                             sector_id,
+                                             prover_id,
+                                             ticket,
+                                             seed,
+                                             public_pieces,
+                                             output));
+
+  EXPECT_OUTCOME_TRUE(isValid,
+                      fc::proofs::verifySeal(sector_size,
+                                             output.comm_r,
+                                             output.comm_d,
+                                             prover_id,
+                                             ticket,
+                                             seed,
+                                             sector_id,
+                                             proof));
+  ASSERT_TRUE(isValid);
+
+  EXPECT_OUTCOME_TRUE_1(fc::proofs::unseal(sector_size,
+                                           porep_proof_partitions,
+                                           sector_cache_dir_path,
+                                           sealed_sector_file,
+                                           unseal_output_file_a,
+                                           sector_id,
+                                           prover_id,
+                                           ticket,
+                                           output.comm_d));
+
+  // read file
+  std::vector<uint8_t> file_a_bytes = {};
+
+  std::ifstream file_a(unseal_output_file_a, std::ios::binary);
+
+  uint8_t ch = file_a.get();
+  while (!file_a.eof()) {
+    file_a_bytes.push_back(ch);
+    ch = file_a.get();
+  }
+
+  file_a.close();
+
+  ASSERT_EQ(gsl::span<uint8_t>(file_a_bytes.data(), 127),
+            gsl::span<uint8_t>(some_bytes.data(), 127));
+  ASSERT_EQ(gsl::span<uint8_t>(file_a_bytes.data() + 508, 508),
+            gsl::span<uint8_t>(some_bytes.data(), 508));
+
+  EXPECT_OUTCOME_TRUE_1(fc::proofs::unsealRange(sector_size,
+                                                porep_proof_partitions,
+                                                sector_cache_dir_path,
+                                                sealed_sector_file,
+                                                unseal_output_file_b,
+                                                sector_id,
+                                                prover_id,
+                                                ticket,
+                                                output.comm_d,
+                                                0,
+                                                127));
+
+  std::vector<uint8_t> file_b_bytes = {};
+
+  std::ifstream file_b(unseal_output_file_b, std::ios::binary);
+
+  ch = file_b.get();
+  while (!file_b.eof()) {
+    file_b_bytes.push_back(ch);
+    ch = file_b.get();
+  }
+
+  ASSERT_EQ(file_b_bytes.size(), 127);
+  ASSERT_EQ(gsl::span<uint8_t>(file_b_bytes.data(), 127),
+            gsl::span<uint8_t>(some_bytes.data(), 127));
+
+  EXPECT_OUTCOME_TRUE_1(fc::proofs::unsealRange(sector_size,
+                                                porep_proof_partitions,
+                                                sector_cache_dir_path,
+                                                sealed_sector_file,
+                                                unseal_output_file_c,
+                                                sector_id,
+                                                prover_id,
+                                                ticket,
+                                                output.comm_d,
+                                                508,
+                                                508));
+
+  std::vector<uint8_t> file_c_bytes = {};
+
+  std::ifstream file_c(unseal_output_file_c, std::ios::binary);
+
+  ch = file_c.get();
+  while (!file_c.eof()) {
+    file_c_bytes.push_back(ch);
+    ch = file_c.get();
+  }
+
+  ASSERT_EQ(file_c_bytes.size(), 508);
+  ASSERT_EQ(gsl::span<uint8_t>(file_c_bytes.data(), 508),
+            gsl::span<uint8_t>(some_bytes.data(), 508));
 }

@@ -35,13 +35,12 @@ namespace fc::crypto::blake2b {
    */
   Blake2b256Hash blake2b_256(gsl::span<const uint8_t> to_hash);
 
-    /**
-     * @brief Get blake2b-512 hash
-     * @param to_hash - data to hash
-     * @return outcome with hash or error
-     */
-    fc::outcome::result<Blake2b512Hash> blake2b_512(
-            gsl::span<const uint8_t> to_hash);
+  /**
+   * @brief Get blake2b-512 hash
+   * @param to_hash - data to hash
+   * @return hash
+   */
+  Blake2b512Hash blake2b_512(gsl::span<const uint8_t> to_hash);
 
 }  // namespace fc::crypto::blake2b
 

@@ -197,7 +197,7 @@ namespace fc::proofs {
 
     gsl::span<uint8_t> content(file_bytes.data(), file_bytes.size());
 
-    OUTCOME_TRY(sum, crypto::blake2b::blake2b_512(content));
+    auto sum = crypto::blake2b::blake2b_512(content);
 
     if (common::hex_lower(gsl::span<uint8_t>(sum.data(), 16)) != info.digest) {
       return ProofParamProviderError::CHECKSUM_MISMATCH;
